@@ -3,8 +3,6 @@
 #include "SilentLink.h"
 #include "HIDMouse.h"
 
-unsigned char GetButtons();
-
 void _main(void)
 {
 	//Pick the driver to load

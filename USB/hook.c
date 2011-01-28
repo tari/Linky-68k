@@ -187,7 +187,7 @@ void HandleUSBInterrupt()
 			//USB_PeripheralInitialize();
 			//OSTimerRestart(2);
 		}
-		else if ((status2 && 0x80) != 0)
+		else if ((status2 & 0x80) != 0)
 		{
 			//Handle USB B-cable disconnect
 			//USB_PeripheralKill();
