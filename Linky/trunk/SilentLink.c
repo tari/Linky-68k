@@ -7,6 +7,7 @@ const unsigned char configDescriptor[] = {0x09, 0x02, 0x20, 0x00, 0x01, 0x01, 0x
 USBPeripheral periph;
 INT_HANDLER saved_int_1;
 INT_HANDLER saved_int_5;
+unsigned int SilentLink_RawPacketMaxSize;
 void* SilentLink_ReceivedVirtualPacket;
 unsigned int SilentLink_CurrentPacketOffset;
 unsigned int SilentLink_CurrentPacketSize;
@@ -27,6 +28,7 @@ void SilentLink_Initialize()
 {
 	//Set default values
 	SilentLink_ReceivedVirtualPacket = NULL;
+	SilentLink_RawPacketMaxSize = 0x3FA;
 	
 	periph = SilentLink_GetInterface();
 	Driver_SetPeripheralInterface(&periph);
@@ -113,6 +115,83 @@ void SilentLink_AddRawPacket(unsigned char* buffer, unsigned int count)
 	SilentLink_CurrentPacketOffset += copySize;
 }
 
+void SilentLink_SendVirtualPacket(short commandID, unsigned char* buffer, unsigned int count)
+{
+	//First calculate how many packets we need to send this
+	unsigned int rawPackets = 0;
+	unsigned int remaining = count + 6;
+	do
+	{
+		remaining -= (SilentLink_RawPacketMaxSize > remaining)? remaining : SilentLink_RawPacketMaxSize;
+		if (remaining > 0) rawPackets++;
+	}	while (remaining > 0);
+	remaining = count + 6;
+
+	//Now send all the type 0x03 packets
+	unsigned int i, j, k;
+	unsigned char rawBuffer[SilentLink_RawPacketMaxSize+5];
+	unsigned int offset = 11;
+	unsigned int bufferOffset = 0;
+
+	//Set up the start of the packet
+	rawBuffer[0] = 0x00;
+	rawBuffer[1] = 0x00;
+	rawBuffer[2] = (SilentLink_RawPacketMaxSize) >> 8;
+	rawBuffer[3] = (SilentLink_RawPacketMaxSize) & 0xFF;
+	rawBuffer[4] = 0x03;
+	rawBuffer[5] = 0x00;
+	rawBuffer[6] = 0x00;
+	rawBuffer[7] = count >> 8;
+	rawBuffer[8] = count & 0xFF;
+	rawBuffer[9] = commandID >> 8;
+	rawBuffer[10] = commandID & 0xFF;
+	if (rawPackets > 0)
+	{
+		//For each packet...
+		for (i = 0; i < (rawPackets - 1); i++)
+		{
+			//Buffer the data
+			k = 0;
+			for (j = offset; j < SilentLink_RawPacketMaxSize-(offset-5); j++)
+			{
+				rawBuffer[j] = buffer[bufferOffset+k];
+				k++;
+			}
+			
+			//Send it off
+			USB_SendBulkData(0x01, rawBuffer, SilentLink_RawPacketMaxSize+5);
+	
+			//Get ready for the next raw packet
+			bufferOffset += (SilentLink_RawPacketMaxSize-(offset-5));
+			offset = 5;
+			remaining -= (SilentLink_RawPacketMaxSize-(offset-5));
+		}
+	}
+
+	//Now send the final 0x04 packet
+	//Set up the start of the packet
+	rawBuffer[0] = 0x00;
+	rawBuffer[1] = 0x00;
+	rawBuffer[2] = remaining >> 8;
+	rawBuffer[3] = remaining & 0xFF;
+	rawBuffer[4] = 0x04;
+
+	//Buffer the data
+	k = 0;
+	for (j = offset; j < SilentLink_RawPacketMaxSize-(offset-5); j++)
+	{
+		rawBuffer[j] = buffer[bufferOffset+k];
+		k++;
+	}
+	
+	//Send it off
+	USB_SendBulkData(0x01, rawBuffer, remaining + 5);
+
+	//Now receive acknowledgement
+	unsigned char ack[7];
+	SilentLink_ReceiveData(ack, 7);
+}
+
 void SilentLink_HandleVirtualPacket()
 {
 	printf("Virtual packet received:\n");
@@ -121,13 +200,27 @@ void SilentLink_HandleVirtualPacket()
 	unsigned char buffer[5];
 	memcpy(buffer, SilentLink_ReceivedVirtualPacket, 5);
 	printf(" Start of data: %02X%02X%02X%02X%02X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
+	
+	switch (SilentLink_CurrentPacketCommandID)
+	{
+		case 0x0001: //Ping / Set Mode
+		{
+			//Send acknowledgement
+			SilentLink_SendVirtualPacket(0x0012, SilentLink_ReceivedVirtualPacket+6, 4);
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
 }
 
 void SilentLink_Do()
 {
 	if (USB_IsDataReady(0x02))
 	{
-		unsigned char rawBuffer[1024];
+		unsigned char rawBuffer[SilentLink_RawPacketMaxSize];
 		unsigned char buffer[5];
 		unsigned int received = SilentLink_ReceiveData(buffer, 0x05);
 
@@ -151,7 +244,8 @@ void SilentLink_Do()
 					unsigned char responseBuffer[9] = {0};
 					responseBuffer[3] = 0x04;
 					responseBuffer[4] = 0x02;
-					memcpy(responseBuffer+5, bufferSize, 4);
+					responseBuffer[7] = SilentLink_RawPacketMaxSize >> 8;
+					responseBuffer[8] = SilentLink_RawPacketMaxSize & 0xFF;
 					USB_SendBulkData(0x01, responseBuffer, 9);
 	
 					break;
