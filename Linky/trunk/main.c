@@ -1,7 +1,7 @@
 #include <tigcclib.h>
 #include "usb.h"
-#include "SilentLink.h"
 #include "HIDMouse.h"
+#include "SilentLink.h"
 
 void _main(void)
 {
@@ -27,12 +27,7 @@ void _main(void)
 	{
 		case 1:
 		{
-			USBPeripheral ret = SilentLink_GetInterface();
-			Driver_SetPeripheralInterface(&ret);
-
-			//Restart the controller
-			USB_KillPower();
-			USB_PeripheralInitialize();
+			SilentLink_Initialize();
 			break;
 		}
 		case 2:
@@ -45,15 +40,6 @@ void _main(void)
 			return;
 		}
 	}
-	
-	INT_HANDLER saved_int_1;
-	INT_HANDLER saved_int_5;
-
-	//Save AUTO_INT_1 and AUTO_INT_5 interrupts because they interfere with key reading
-	saved_int_1 = GetIntVec(AUTO_INT_1);
-	saved_int_5 = GetIntVec(AUTO_INT_5);
-	SetIntVec(AUTO_INT_1, DUMMY_HANDLER);
-	SetIntVec(AUTO_INT_5, DUMMY_HANDLER);
 
 	//Main key loop
 	while(1)
@@ -63,6 +49,11 @@ void _main(void)
 
 		switch(ID)
 		{
+			case 1:
+			{
+				SilentLink_Do();
+				break;
+			}
 			case 2:
 			{
 				if (_keytest(RR_PLUS))
@@ -82,12 +73,13 @@ void _main(void)
 		}
 	}
 
-	//Restore AUTO_INT_1 and AUTO_INT_5 interrupts
-  SetIntVec(AUTO_INT_1, saved_int_1);
-  SetIntVec(AUTO_INT_5, saved_int_5);
-
 	switch(ID)
 	{
+		case 1:
+		{
+			SilentLink_Kill();
+			break;
+		}
 		case 2:
 		{
 			HIDMouse_Kill();
@@ -95,8 +87,6 @@ void _main(void)
 		}
 	}
 	
-	USB_PeripheralKill();
-
 	//Shut down the driver
 	Driver_Kill();
 

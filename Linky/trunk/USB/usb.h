@@ -99,6 +99,7 @@ int USBState;													      //used in sending back control request responses
 int newAddressReceived;								      //used in setting the address from the interrupt
 int wAddress;													      //used in setting the address from the interrupt
 int bytesBuffered[0x0F];							      //keeps track of buffered incoming data per pipe
+unsigned char incomingDataReadyMap;					//keeps track of incoming data per pipe
 
 //Basic driver functions
 void Driver_Initialize();
@@ -106,6 +107,7 @@ void Driver_Kill();
 void Driver_SetPeripheralInterface(USBPeripheral* interface);
 
 //USB functions
+int USB_IsDataReady(unsigned char endpoint);
 void USB_KillPower();
 void USB_PeripheralInitialize();
 void USB_PeripheralKill();
@@ -116,6 +118,7 @@ void USB_SendControlData(unsigned char* data, unsigned int length);
 void USB_FinishControlOutput();
 int USB_SendInterruptData(unsigned char endpoint, unsigned char* data, unsigned int count);
 int USB_ReceiveInterruptData(unsigned char endpoint, unsigned char* data, unsigned int count);
+void USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int count);
 int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned int count);
 void USB_SetupOutgoingPipe(unsigned char endpoint, USB_EndpointType type, unsigned char maxPacketSize);
 

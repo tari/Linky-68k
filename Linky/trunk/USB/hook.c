@@ -180,8 +180,6 @@ void HandleUSBInterrupt()
 			if (peripheralInterface->h_connected != NULL)
 				peripheralInterface->h_connected();
 
-			//Let the AMS deal with initializing the port
-			//ExecuteHandler(OldInt3);
 			USB_PeripheralInitialize();
 			OSTimerRestart(2);
 		}
@@ -190,8 +188,6 @@ void HandleUSBInterrupt()
 			//Handle USB B-cable disconnect
 			USB_PeripheralKill();
 			OSTimerRestart(2);
-			//Let the AMS deal with killing the port
-			//ExecuteHandler(OldInt3);
 		}
 		else
 		{
@@ -219,6 +215,7 @@ void HandleUSBInterrupt()
 					bytesBuffered[i] = 0x00;
 				readyMap = (readyMap >> 1);
 			}
+			incomingDataReadyMap = incomingDataReady;
 
 			//Handle incoming bulk/interrupt data
 			if (peripheralInterface->h_incomingData != NULL)
