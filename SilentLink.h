@@ -1,4 +1,6 @@
 #include <tigcclib.h>
 #include "usb.h"
 
-USBPeripheral SilentLink_GetInterface();
+void SilentLink_Initialize();
+void SilentLink_Kill();
+void SilentLink_Do();

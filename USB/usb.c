@@ -1,6 +1,16 @@
 #include <tigcclib.h>
 #include "usb.h"
 
+int USB_IsDataReady(unsigned char endpoint)
+{
+	return (incomingDataReadyMap & (endpoint << 1)) ? 1 : 0;
+}
+
+void USB_IndicateNotReady(unsigned char endpoint)
+{
+	incomingDataReadyMap &= ~(endpoint << 1);
+}
+
 void USB_KillPower()
 {
 	//Set bit 1, which cuts power to the USB controller
@@ -110,11 +120,54 @@ int USB_ReceiveInterruptData(unsigned char endpoint, unsigned char* data, unsign
 	return ret;
 }
 
-int USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int count)
+void USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int count)
 {
-	return 0;
+	unsigned char* dataBuffer = data;
+	unsigned int bytesToSend;
+
+	//Set endpoint
+	*USB_SELECTED_ENDPOINT_ADDR = (endpoint & 0x7F);
+	
+	//HACK: We should do this somewhere else, this assumes bulk endpoint with max packet size 0x40
+	*USB_OUTGOING_PIPE_SETUP_ADDR = (endpoint & 0x7F) | 0x20;
+	*USB_OUTGOING_MAX_PACKET_SIZE_ADDR = 0x08;
+	*USB_DATA_OUT_EN_ADDR1 = 0xFF;
+	*USB_UNKNOWN_92_ADDR = 0x00;
+	*USB_INIT_RELATED1_ADDR = 0xA1;
+	
+	//Disable interrupts
+	*USB_INT_ENABLE_ADDR = (unsigned char)0x00;
+	
+	while (count > 0)
+	{
+		bytesToSend = count > 0x40? 0x40 : count;
+		
+		//Send data
+		unsigned int i;
+		volatile unsigned char* dataPipe = USB_ENDPOINT0_DATA_ADDR + (endpoint & 0x7F);
+		for (i = 0; i < bytesToSend; i++)
+		{
+			*dataPipe = dataBuffer[i];
+		}
+
+		dataBuffer += bytesToSend;
+		count -= bytesToSend;
+		
+		//Send continuation commands
+		volatile unsigned char val;
+		*USB_OUTGOING_CMD_ADDR = (unsigned char)0x01;
+		do
+		{
+			val = *USB_OUTGOING_DATA_SUCCESS_ADDR;
+		} while ((val & (endpoint << 1)) == 0);
+		*USB_OUTGOING_CMD_ADDR = (unsigned char)0x08;
+	}
+	
+	//Re-enable USB interrupts
+	*USB_INT_ENABLE_ADDR = (unsigned char)0x01;
 }
 
+//HACK: This currently can't receive more than the max packet size at one time
 int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned int count)
 {
 	int ret = 0;
@@ -155,6 +208,8 @@ int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned in
 		{
 			*USB_INCOMING_CMD_ADDR &= (unsigned char)0xFE;
 			*USB_INIT_RELATED1_ADDR = (unsigned char)0xA1;
+			
+			USB_IndicateNotReady(endpoint);
 		}
 	}
 	
@@ -243,7 +298,7 @@ void USB_PeripheralInitialize()
 	//Wait for 100ms
 	timerValue = FiftyMsecTick;
 	while (FiftyMsecTick < timerValue+2);
-	
+
 	if ((unsigned char)*USB_INIT_3A_ADDR & 0x08)
 		*USB_BASE_POWER_ADDR = (unsigned char)0x44;
 	*USB_BASE_POWER_ADDR = (unsigned char)0xC4;
@@ -281,19 +336,21 @@ void USB_PeripheralInitialize()
 			*USB_UNKNOWN_81_ADDR |= (unsigned char)0x01;
 		}
 		*USB_BASE_POWER_ADDR |= (unsigned char)0x01;
-		
+
 		//Wait for the frame counter to start
 		for( i = 0; i < 0xFFFFFF; i++)
 		{
 			if ((unsigned char)*USB_FRAME_COUNTER_LOW_ADDR > 0)
 				break;
 		}
-		
-		if (i >= 0xFFFFFF)
-			USB_PeripheralKill();
+
+		//if (i >= 0xFFFFFF)
+			//USB_PeripheralKill();
+		//else
+			//printf("Frame counter started\n");
 	}
-	else
-		USB_PeripheralKill();
+	//else
+		//USB_PeripheralKill();
 
 	//Wait for 200ms
 	timerValue = FiftyMsecTick;
@@ -304,36 +361,85 @@ void USB_PeripheralInitialize()
 
 void USB_PeripheralKill()
 {
-	*USB_BASE_POWER_ADDR |= (unsigned char)0x02;
-	*USB_INIT_4C_ADDR = (unsigned char)0x00;
+	INT_HANDLER AutoInt5Backup = GetIntVec(AUTO_INT_5);
+	SetIntVec(AUTO_INT_5, MyTimerHandler);
 
-	//I just don't know...
-	/**USB_INT_ENABLE_ADDR = (unsigned char)0x00;
+	volatile unsigned char val;
+	unsigned long i = 0;
+	volatile unsigned long timerValue;
 
+	//Disable USB interrupts
+	*USB_INT_ENABLE_ADDR = (unsigned char)0x00;
+
+	//Is ID line high?
 	if ((unsigned char)*USB_INIT_4D_ADDR & 0x20)
 	{
+		//ID line is high; no cable is connected, or a mini-B cable is connected
 		if ((unsigned char)*USB_INIT_4D_ADDR & 0x40)
+			//Vbus line is high
 			*USB_INIT_4C_ADDR = (unsigned char)0x08;
 		else
+			//Vbus line is low
 			*USB_INIT_4C_ADDR = (unsigned char)0x00;
 	}
 	else
 	{
+		//ID line is low; a mini-A cable is connected?
 		*USB_INIT_4C_ADDR = (unsigned char)0x00;
 	}
-	
+
 	*USB_BASE_POWER_ADDR = (unsigned char)0x02;
 	*USB_INIT_39_ADDR &= (unsigned char)0xF8;
 	
-	if ((unsigned char)*USB_INIT_4D_ADDR & 0x40)
+	*USB_INIT_4C_ADDR = (unsigned char)0x00;
+
+	//Wait for 100ms
+	timerValue = FiftyMsecTick;
+	while (FiftyMsecTick < timerValue+2);
+
+	if ((unsigned char)*USB_INIT_4D_ADDR & 0x20)
 	{
-		*USB_INT_MASK_ADDR = (unsigned char)0x57;
+		if ((unsigned char)*USB_INIT_4D_ADDR & 0x10)
+		{
+			val = *USB_INT_MASK_ADDR;
+			*USB_INT_MASK_ADDR = (unsigned char)0x00;
+			*USB_INT_MASK_ADDR = val;
+		}
+		else
+		{
+			if ((unsigned char)*USB_INIT_4D_ADDR & 0x40)
+			{
+				*USB_INT_MASK_ADDR = (unsigned char)0x80;
+			}
+			else
+			{
+				*USB_INT_MASK_ADDR = (unsigned char)0x50;
+			}
+		}
 	}
 	else
 	{
-		*USB_INIT_4C_ADDR = (unsigned char)0x00;
-		*USB_INT_MASK_ADDR = (unsigned char)0x50;
+		if ((unsigned char)*USB_INIT_4D_ADDR & 0x20)
+		{
+			val = *USB_INT_MASK_ADDR;
+			*USB_INT_MASK_ADDR = (unsigned char)0x00;
+			*USB_INT_MASK_ADDR = val;
+		}
+		else
+		{
+			i = 0;
+			do
+			{
+				val = *USB_INIT_4D_ADDR;
+
+				if (++i > 0xFFFFFF)
+					break;
+			}while ((val & 0x81) != 0x81);
+		}
+
+		if (i < 0xFFFFFF)
+			*USB_INT_MASK_ADDR = (unsigned char)0x22;
 	}
 
-	*USB_INT_ENABLE_ADDR = (unsigned char)0x01;*/
+	SetIntVec(AUTO_INT_5, AutoInt5Backup);
 }
