@@ -40,9 +40,7 @@ void USB_HandleControlPacket(unsigned char* packet)
 					if (peripheralInterface->h_hubGetStatus != NULL)
 						peripheralInterface->h_hubGetStatus(data, wIndex);
 
-					USB_StartControlOutput();
-					USB_SendControlData(data, 4);
-					USB_FinishControlOutput();
+					USB_StartControlOutput(data, 4);
 					handled = 1;
 					break;
 				}

@@ -90,15 +90,15 @@ typedef struct
 const USBPeripheral DEFAULT_USB_PERIPHERAL = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 //For internal driver use (should these go somewhere else?)
-USBPeripheral* peripheralInterface;   //Pointer to USB peripheral mode setup/interface information
-INT_HANDLER OldInt3;                  //Backup of old AUTO_INT_3 interrupt vector
-unsigned char bMaxPacketSize0;				//used in control pipe communication
-unsigned char* controlDataAddress;		//used in sending back control request responses
-unsigned int responseBytesRemaining;	//used in sending back control request responses
-int USBState;													//used in sending back control request responses
-int newAddressReceived;								//used in setting the address from the interrupt
-int wAddress;													//used in setting the address from the interrupt
-int bytesBuffered[0x0F];							//keeps track of buffered incoming data per pipe
+USBPeripheral* peripheralInterface;         //Pointer to USB peripheral mode setup/interface information
+INT_HANDLER OldInt3;                        //Backup of old AUTO_INT_3 interrupt vector
+unsigned char bMaxPacketSize0;				      //used in control pipe communication
+const unsigned char* controlDataAddress;		//used in sending back control request responses
+unsigned int responseBytesRemaining;	      //used in sending back control request responses
+int USBState;													      //used in sending back control request responses
+int newAddressReceived;								      //used in setting the address from the interrupt
+int wAddress;													      //used in setting the address from the interrupt
+int bytesBuffered[0x0F];							      //keeps track of buffered incoming data per pipe
 
 //Basic driver functions
 void Driver_Initialize();
@@ -111,7 +111,7 @@ void USB_PeripheralInitialize();
 void USB_PeripheralKill();
 void USB_SetFunctionAddress(int address);
 void USB_FinishControlRequest();
-void USB_StartControlOutput();
+void USB_StartControlOutput(const unsigned char* address, int bytesRemaining);
 void USB_SendControlData(unsigned char* data, unsigned int length);
 void USB_FinishControlOutput();
 int USB_SendInterruptData(unsigned char endpoint, unsigned char* data, unsigned int count);
