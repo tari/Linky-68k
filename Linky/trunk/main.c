@@ -13,7 +13,7 @@ void _main(void)
   short ID = PopupDo(h, CENTER, CENTER, 0);
   HeapFree(h);
   if (ID <= 0) return;
-
+  
 	//Initialize the driver
   Driver_Initialize();
 
@@ -29,6 +29,10 @@ void _main(void)
 		{
 			USBPeripheral ret = SilentLink_GetInterface();
 			Driver_SetPeripheralInterface(&ret);
+
+			//Restart the controller
+			USB_KillPower();
+			USB_PeripheralInitialize();
 			break;
 		}
 		case 2:
@@ -41,6 +45,15 @@ void _main(void)
 			return;
 		}
 	}
+	
+	INT_HANDLER saved_int_1;
+	INT_HANDLER saved_int_5;
+
+	//Save AUTO_INT_1 and AUTO_INT_5 interrupts because they interfere with key reading
+	saved_int_1 = GetIntVec(AUTO_INT_1);
+	saved_int_5 = GetIntVec(AUTO_INT_5);
+	SetIntVec(AUTO_INT_1, DUMMY_HANDLER);
+	SetIntVec(AUTO_INT_5, DUMMY_HANDLER);
 
 	//Main key loop
 	while(1)
@@ -69,6 +82,10 @@ void _main(void)
 		}
 	}
 
+	//Restore AUTO_INT_1 and AUTO_INT_5 interrupts
+  SetIntVec(AUTO_INT_1, saved_int_1);
+  SetIntVec(AUTO_INT_5, saved_int_5);
+
 	switch(ID)
 	{
 		case 2:
@@ -76,7 +93,9 @@ void _main(void)
 			HIDMouse_Kill();
 			break;
 		}
-	}	
+	}
+	
+	USB_PeripheralKill();
 
 	//Shut down the driver
 	Driver_Kill();

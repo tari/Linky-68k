@@ -181,17 +181,17 @@ void HandleUSBInterrupt()
 				peripheralInterface->h_connected();
 
 			//Let the AMS deal with initializing the port
-			ExecuteHandler(OldInt3);
-			//USB_PeripheralInitialize();
-			//OSTimerRestart(2);
+			//ExecuteHandler(OldInt3);
+			USB_PeripheralInitialize();
+			OSTimerRestart(2);
 		}
 		else if ((status2 & 0x80) != 0)
 		{
 			//Handle USB B-cable disconnect
-			//USB_PeripheralKill();
-			//OSTimerRestart(2);
+			USB_PeripheralKill();
+			OSTimerRestart(2);
 			//Let the AMS deal with killing the port
-			ExecuteHandler(OldInt3);
+			//ExecuteHandler(OldInt3);
 		}
 		else
 		{
@@ -342,7 +342,7 @@ void Driver_Initialize()
 {
 	//Set default values for everything
 	peripheralInterface = NULL;
-	
+
   //Back up the old and install the new handler
   OldInt3 = GetIntVec(AUTO_INT_3);
   SetIntVec(AUTO_INT_3, MyInt3);
