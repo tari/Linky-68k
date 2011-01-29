@@ -223,7 +223,7 @@ void HandleUSBInterrupt()
 		}
 		else
 		{
-			if ((mode & 0x04) == 1)
+			if (mode & 0x04)
 			{
 				//Calculator is in host mode, handle data waiting accordingly
 				//USB_HandleHostDataWaiting();
