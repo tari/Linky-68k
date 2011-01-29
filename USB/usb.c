@@ -110,6 +110,11 @@ int USB_ReceiveInterruptData(unsigned char endpoint, unsigned char* data, unsign
 	return ret;
 }
 
+int USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int count)
+{
+	return 0;
+}
+
 int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned int count)
 {
 	int ret = 0;
@@ -156,7 +161,7 @@ int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned in
 	return ret;
 }
 
-void USB_StartControlOutput(unsigned char* address, int bytesRemaining)
+void USB_StartControlOutput(const unsigned char* address, int bytesRemaining)
 {
 	controlDataAddress = address;
 	responseBytesRemaining = bytesRemaining;
