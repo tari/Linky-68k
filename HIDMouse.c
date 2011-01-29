@@ -80,31 +80,28 @@ void HIDMouse_Initialize()
 	buttonsPressed = 0x00;
 	HIDMouse_Sensitivity = 0x04;
 
+	periph = HIDMouse_GetInterface();
+	Driver_SetPeripheralInterface(&periph);
+
 	//Save AUTO_INT_1 and AUTO_INT_5 interrupts because they interfere with key reading
 	saved_int_1 = GetIntVec(AUTO_INT_1);
 	saved_int_5 = GetIntVec(AUTO_INT_5);
 	SetIntVec(AUTO_INT_1, DUMMY_HANDLER);
 	SetIntVec(AUTO_INT_5, DUMMY_HANDLER);
-	
-	periph = HIDMouse_GetInterface();
-	Driver_SetPeripheralInterface(&periph);
 
-	//Restart the controller (doesn't work yet)
-	/*USB_KillPower();
-	OSFreeTimer(0x09); //wait for 100ms
-	OSRegisterTimer(0x09, 2);
-	while (!OSTimerExpired(0x09));
-	USB_PeripheralInitialize();*/
+	//Restart the controller
+	USB_KillPower();
+	USB_PeripheralInitialize();
 }
 
 void HIDMouse_Kill()
 {
+	//Cut power to the port
+	USB_PeripheralKill();
+
 	//Restore AUTO_INT_1 and AUTO_INT_5 interrupts
   SetIntVec(AUTO_INT_1, saved_int_1);
   SetIntVec(AUTO_INT_5, saved_int_5);
-
-	//Cut power to the port
-	USB_KillPower();
 }
 
 unsigned char HIDMouse_GetButtonValue()

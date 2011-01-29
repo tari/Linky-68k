@@ -211,10 +211,19 @@ void USB_SetupOutgoingPipe(unsigned char endpoint, USB_EndpointType type, unsign
 	*USB_INIT_RELATED1_ADDR = (unsigned char)0xA1;
 }
 
+DEFINE_INT_HANDLER(MyTimerHandler)
+{
+	FiftyMsecTick++;
+}
+
 void USB_PeripheralInitialize()
 {
-	unsigned char val = 0;
+	INT_HANDLER AutoInt5Backup = GetIntVec(AUTO_INT_5);
+	SetIntVec(AUTO_INT_5, MyTimerHandler);
+
+	volatile unsigned char val;
 	unsigned long i;
+	volatile unsigned long timerValue;
 
 	*USB_INT_MASK_ADDR = (unsigned char)0x80;
 	
@@ -223,7 +232,7 @@ void USB_PeripheralInitialize()
 	val = *USB_INIT_4C_ADDR; //dummy read
 	*USB_BASE_POWER_ADDR = (unsigned char)0x02;
 	*USB_INIT_4A_ADDR = (unsigned char)0x20;
-	
+
 	//Power-related stuff, I believe
 	*USB_INIT_4B_ADDR = (unsigned char)0x00;
 	if ((unsigned char)*USB_INIT_3A_ADDR & 0x08)
@@ -232,14 +241,13 @@ void USB_PeripheralInitialize()
 	*USB_BASE_POWER_ADDR = (unsigned char)0x00;
 	
 	//Wait for 100ms
-	OSFreeTimer(0x09);
-	OSRegisterTimer(0x09, 2);
-	while (!OSTimerExpired(0x09));
-
+	timerValue = FiftyMsecTick;
+	while (FiftyMsecTick < timerValue+2);
+	
 	if ((unsigned char)*USB_INIT_3A_ADDR & 0x08)
 		*USB_BASE_POWER_ADDR = (unsigned char)0x44;
 	*USB_BASE_POWER_ADDR = (unsigned char)0xC4;
-	
+
 	*USB_INIT_4C_ADDR = (unsigned char)0x08;
 	
 	//Wait on 4C
@@ -248,11 +256,11 @@ void USB_PeripheralInitialize()
 	{
 		val = *USB_INIT_4C_ADDR;
 		
-		if (++i > 65536)
+		if (++i > 0xFFFFFF)
 			break;
 	}while (val != 0x1A && val != 0x5A);
 	
-	if (i < 65536)
+	if (i < 0xFFFFFF)
 	{
 		*USB_DATA_OUT_EN_ADDR1 = (unsigned char)0xFF;
 		*USB_UNKNOWN_92_ADDR = (unsigned char)0x00;
@@ -262,38 +270,45 @@ void USB_PeripheralInitialize()
 	
 		if ((unsigned char)*USB_MODE_ADDR & 0x04) //this checks the host bit to see if it's set
 		{
-			*USB_UNKNOWN_81_ADDR |= 0x02;
+			*USB_UNKNOWN_81_ADDR |= (unsigned char)0x02;
+
 			//Wait for 200ms
-			OSFreeTimer(0x09);
-			OSRegisterTimer(0x09, 4);
-			while (!OSTimerExpired(0x09));
+			timerValue = FiftyMsecTick;
+			while (FiftyMsecTick < timerValue+4);
 		}
 		else
 		{
-			*USB_UNKNOWN_81_ADDR |= 0x01;
+			*USB_UNKNOWN_81_ADDR |= (unsigned char)0x01;
 		}
-		*USB_BASE_POWER_ADDR |= 0x01;
+		*USB_BASE_POWER_ADDR |= (unsigned char)0x01;
 		
 		//Wait for the frame counter to start
-		for( i = 0; i < 0x50000; i++)
+		for( i = 0; i < 0xFFFFFF; i++)
+		{
 			if ((unsigned char)*USB_FRAME_COUNTER_LOW_ADDR > 0)
 				break;
+		}
 		
-		if (i >= 0x50000)
+		if (i >= 0xFFFFFF)
 			USB_PeripheralKill();
 	}
 	else
 		USB_PeripheralKill();
 
 	//Wait for 200ms
-	OSFreeTimer(0x09);
-	OSRegisterTimer(0x09, 4);
-	while (!OSTimerExpired(0x09));
+	timerValue = FiftyMsecTick;
+	while (FiftyMsecTick < timerValue+4);
+
+	SetIntVec(AUTO_INT_5, AutoInt5Backup);
 }
 
 void USB_PeripheralKill()
 {
-	*USB_INT_ENABLE_ADDR = (unsigned char)0x00;
+	*USB_BASE_POWER_ADDR |= (unsigned char)0x02;
+	*USB_INIT_4C_ADDR = (unsigned char)0x00;
+
+	//I just don't know...
+	/**USB_INT_ENABLE_ADDR = (unsigned char)0x00;
 
 	if ((unsigned char)*USB_INIT_4D_ADDR & 0x20)
 	{
@@ -310,32 +325,15 @@ void USB_PeripheralKill()
 	*USB_BASE_POWER_ADDR = (unsigned char)0x02;
 	*USB_INIT_39_ADDR &= (unsigned char)0xF8;
 	
-	if ((unsigned char)*USB_INIT_4D_ADDR & 0x20)
+	if ((unsigned char)*USB_INIT_4D_ADDR & 0x40)
 	{
-		if ((unsigned char)*USB_INIT_4D_ADDR & 0x40)
-		{
-			*USB_INT_MASK_ADDR = (unsigned char)0x57;
-		}
-		else
-		{
-			*USB_INIT_4C_ADDR = (unsigned char)0x00;
-			*USB_INT_MASK_ADDR = (unsigned char)0x50;
-		}
+		*USB_INT_MASK_ADDR = (unsigned char)0x57;
 	}
 	else
 	{
-		unsigned long i = 0;
-		unsigned char val;
-		do
-		{
-			val = *USB_INIT_4D_ADDR;
-			
-			if (++i < 65536)
-				break;
-		}while ((val & 0x81) > 0);
-		
-		*USB_INT_MASK_ADDR = (unsigned char)0x22;
+		*USB_INIT_4C_ADDR = (unsigned char)0x00;
+		*USB_INT_MASK_ADDR = (unsigned char)0x50;
 	}
 
-	*USB_INT_ENABLE_ADDR = (unsigned char)0x01;
+	*USB_INT_ENABLE_ADDR = (unsigned char)0x01;*/
 }
