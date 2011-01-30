@@ -50,7 +50,7 @@ Use Return Value=0
 Enable Error Return=0
 Save Screen=1
 [File Editing]
-Open File=C:\Documents and Settings\Brandon\Desktop\calcstuff\Linky\trunk\USB\hook.c
+Open File=C:\Documents and Settings\Brandon\Desktop\calcstuff\Linky\trunk\SilentLink.c
 [Included Files]
 C File 1=main.c
 C File 2=SilentLink.c
