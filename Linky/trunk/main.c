@@ -3,6 +3,7 @@
 #include "HIDMouse.h"
 #include "HIDKeyboard.h"
 #include "SilentLink.h"
+#include "MassStorage.h"
 
 void _main(void)
 {
@@ -12,6 +13,7 @@ void _main(void)
   if (PopupAddText(h, -1, "Silent Link", 1) == H_NULL) return;
   if (PopupAddText(h, -1, "HID Mouse", 2) == H_NULL) return;
   if (PopupAddText(h, -1, "HID Keyboard", 3) == H_NULL) return;
+  if (PopupAddText(h, -1, "Mass Storage", 4) == H_NULL) return;
   short ID = PopupDo(h, CENTER, CENTER, 0);
   HeapFree(h);
   if (ID <= 0) return;
@@ -40,6 +42,11 @@ void _main(void)
 		case 3:
 		{
 			HIDKeyboard_Initialize();
+			break;
+		}
+		case 4:
+		{
+			MassStorage_Initialize();
 			break;
 		}
 		default:
@@ -82,6 +89,11 @@ void _main(void)
 				HIDKeyboard_Do();
 				break;
 			}
+			case 4:
+			{
+				MassStorage_Do();
+				break;
+			}
 		}
 	}
 
@@ -100,6 +112,11 @@ void _main(void)
 		case 3:
 		{
 			HIDKeyboard_Kill();
+			break;
+		}
+		case 4:
+		{
+			MassStorage_Kill();
 			break;
 		}
 	}
