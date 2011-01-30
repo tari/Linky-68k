@@ -37,7 +37,7 @@ int MassStorage_UnknownControlRequest(unsigned char bmRequestType, unsigned char
 	return handled;
 }
 
-USBPeripheral MassStorage_GetInterface()
+USBPeripheral MassStorage_GetInterface(void)
 {
   USBPeripheral ret = DEFAULT_USB_PERIPHERAL;
 
@@ -51,7 +51,7 @@ USBPeripheral MassStorage_GetInterface()
   return ret;
 }
 
-void MassStorage_Initialize()
+void MassStorage_Initialize(void)
 {
 	periph = MassStorage_GetInterface();
 	Driver_SetPeripheralInterface(&periph);
@@ -67,7 +67,7 @@ void MassStorage_Initialize()
 	USB_PeripheralInitialize();
 }
 
-void MassStorage_Kill()
+void MassStorage_Kill(void)
 {
 	//Cut power to the port
 	USB_PeripheralKill();
@@ -98,7 +98,7 @@ unsigned int MassStorage_ReceiveData(unsigned char* buffer, unsigned int count)
 	return bytesReceived;
 }
 
-void MassStorage_Do()
+void MassStorage_Do(void)
 {
 	if (USB_IsDataReady(0x02))
 	{

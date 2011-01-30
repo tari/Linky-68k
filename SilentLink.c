@@ -13,7 +13,7 @@ unsigned int SilentLink_CurrentPacketOffset;
 unsigned int SilentLink_CurrentPacketSize;
 unsigned short SilentLink_CurrentPacketCommandID;
 
-USBPeripheral SilentLink_GetInterface()
+USBPeripheral SilentLink_GetInterface(void)
 {
   USBPeripheral ret = DEFAULT_USB_PERIPHERAL;
 
@@ -24,7 +24,7 @@ USBPeripheral SilentLink_GetInterface()
   return ret;
 }
 
-void SilentLink_Initialize()
+void SilentLink_Initialize(void)
 {
 	//Set default values
 	SilentLink_ReceivedVirtualPacket = NULL;
@@ -44,7 +44,7 @@ void SilentLink_Initialize()
 	USB_PeripheralInitialize();
 }
 
-void SilentLink_Kill()
+void SilentLink_Kill(void)
 {
 	//Cut power to the port
 	USB_PeripheralKill();
@@ -75,7 +75,7 @@ unsigned int SilentLink_ReceiveData(unsigned char* buffer, unsigned int count)
 	return bytesReceived;
 }
 
-void SilentLink_SendAcknowledgement()
+void SilentLink_SendAcknowledgement(void)
 {
 	unsigned char buffer[7] = {0};
 	
@@ -201,7 +201,7 @@ void SilentLink_SendVirtualPacket(short commandID, unsigned char* buffer, unsign
 //Handle the command in the switch statement below by just acting on it,
 //  responding with virtual packets (with SilentLink_SendVirtualPacket),
 //  or whatever you want. It has already been acknowledged elsewhere.
-void SilentLink_HandleVirtualPacket()
+void SilentLink_HandleVirtualPacket(void)
 {
 	/*printf("Virtual packet received:\n");
 	printf(" Command ID: %04X\n", SilentLink_CurrentPacketCommandID);
@@ -225,7 +225,7 @@ void SilentLink_HandleVirtualPacket()
 	}
 }
 
-void SilentLink_Do()
+void SilentLink_Do(void)
 {
 	if (USB_IsDataReady(0x02))
 	{

@@ -108,14 +108,14 @@ void Driver_SetPeripheralInterface(USBPeripheral* interface);
 
 //USB functions
 int USB_IsDataReady(unsigned char endpoint);
-void USB_KillPower();
-void USB_PeripheralInitialize();
-void USB_PeripheralKill();
+void USB_KillPower(void);
+void USB_PeripheralInitialize(void);
+void USB_PeripheralKill(void);
 void USB_SetFunctionAddress(int address);
-void USB_FinishControlRequest();
+void USB_FinishControlRequest(void);
 void USB_StartControlOutput(const unsigned char* address, int bytesRemaining);
 void USB_SendControlData(unsigned char* data, unsigned int length);
-void USB_FinishControlOutput();
+void USB_FinishControlOutput(void);
 int USB_SendInterruptData(unsigned char endpoint, unsigned char* data, unsigned int count);
 int USB_ReceiveInterruptData(unsigned char endpoint, unsigned char* data, unsigned int count);
 void USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int count);

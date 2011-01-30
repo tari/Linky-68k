@@ -14,7 +14,7 @@ INT_HANDLER saved_int_1;
 INT_HANDLER saved_int_5;
 unsigned int buttonsPressed;
 
-void HIDMouse_HandleSetConfiguration()
+void HIDMouse_HandleSetConfiguration(void)
 {
 	//Set up the outgoing interrupt pipe
 	USB_SetupOutgoingPipe(0x01, Type_Interrupt, 0x08);
@@ -59,7 +59,7 @@ int HIDMouse_UnknownControlRequest(unsigned char bmRequestType, unsigned char bR
 	return handled;
 }
 
-USBPeripheral HIDMouse_GetInterface()
+USBPeripheral HIDMouse_GetInterface(void)
 {
   USBPeripheral ret = DEFAULT_USB_PERIPHERAL;
 
@@ -74,7 +74,7 @@ USBPeripheral HIDMouse_GetInterface()
   return ret;
 }
 
-void HIDMouse_Initialize()
+void HIDMouse_Initialize(void)
 {
 	//Set default values
 	buttonsPressed = 0x00;
@@ -94,7 +94,7 @@ void HIDMouse_Initialize()
 	USB_PeripheralInitialize();
 }
 
-void HIDMouse_Kill()
+void HIDMouse_Kill(void)
 {
 	//Cut power to the port
 	USB_PeripheralKill();
@@ -104,7 +104,7 @@ void HIDMouse_Kill()
   SetIntVec(AUTO_INT_5, saved_int_5);
 }
 
-unsigned char HIDMouse_GetButtonValue()
+unsigned char HIDMouse_GetButtonValue(void)
 {
 	unsigned char ret;
 	
@@ -114,7 +114,7 @@ unsigned char HIDMouse_GetButtonValue()
 	return ret;
 }
 
-void HIDMouse_Do()
+void HIDMouse_Do(void)
 {
 	int keysPressed = 0;
 
