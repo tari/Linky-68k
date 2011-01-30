@@ -16,6 +16,10 @@ USBPeripheral periph;
 INT_HANDLER saved_int_1;
 INT_HANDLER saved_int_5;
 
+#define NR_ROWS (7)
+
+unsigned char keyboard_state[NR_ROWS] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
 void HIDKeyboard_HandleSetConfiguration(void)
 {
 	//Set up the outgoing interrupt pipe
@@ -63,17 +67,17 @@ int HIDKeyboard_UnknownControlRequest(unsigned char bmRequestType, unsigned char
 
 USBPeripheral HIDKeyboard_GetInterface(void)
 {
-  USBPeripheral ret = DEFAULT_USB_PERIPHERAL;
+	USBPeripheral ret = DEFAULT_USB_PERIPHERAL;
 
-  //Set descriptor information
-  ret.deviceDescriptor = HIDKeyboard_DeviceDescriptor;
-  ret.configDescriptor = HIDKeyboard_ConfigDescriptor;
+	//Set descriptor information
+	ret.deviceDescriptor = HIDKeyboard_DeviceDescriptor;
+	ret.configDescriptor = HIDKeyboard_ConfigDescriptor;
 
 	//Set callbacks
-  ret.h_setConfig = HIDKeyboard_HandleSetConfiguration;
-  ret.h_unknownControlRequest = HIDKeyboard_UnknownControlRequest;
+	ret.h_setConfig = HIDKeyboard_HandleSetConfiguration;
+	ret.h_unknownControlRequest = HIDKeyboard_UnknownControlRequest;
 
-  return ret;
+	return ret;
 }
 
 void HIDKeyboard_Initialize(void)
@@ -98,26 +102,91 @@ void HIDKeyboard_Kill(void)
 	USB_PeripheralKill();
 
 	//Restore AUTO_INT_1 and AUTO_INT_5 interrupts
-  SetIntVec(AUTO_INT_1, saved_int_1);
-  SetIntVec(AUTO_INT_5, saved_int_5);
+	SetIntVec(AUTO_INT_1, saved_int_1);
+	SetIntVec(AUTO_INT_5, saved_int_5);
 }
+
+#define MAX_OUTPUT_KEYS (6)
+
+#define COLUMN_ALPHA    (0x80)
+#define COLUMN_DIAMOND  (0x40)
+#define COLUMN_SHIFT    (0x20)
+#define COLUMN_2nd      (0x10)
+#define COLUMN_RIGHT    (0x08)
+#define COLUMN_DOWN     (0x04)
+#define COLUMN_LEFT     (0x02)
+#define COLUMN_UP       (0x01)
 
 void HIDKeyboard_Do(void)
 {
 	unsigned char keysPressed = 0;
-	
-	if (_keytest(RR_APPS)) keysPressed = 1;
+	unsigned char new_keyboard_state[NR_ROWS];
+	unsigned char output[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	unsigned char modifier_keys;
+	unsigned short i = 0, j = 1;
 
+	unsigned short nr_keys = 0+2;
+
+	// Read all 89T keyboard rows.
+	for (i = 0; i < NR_ROWS; i++)
+	{
+		new_keyboard_state[i] = _rowread_inverted(j);
+		j <<= 1;
+	}
+
+	// TODO handle more than modifier keys and UP/DOWN/LEFT/RIGHT
+	modifier_keys = new_keyboard_state[0];
+	if (modifier_keys)
+	{
+		keysPressed = 1;
+	}
+
+	if (modifier_keys & COLUMN_DIAMOND)      // Map DIAMOND to LEFT CTRL
+	{
+		output[0] |= 1;
+	}
+	if (modifier_keys & COLUMN_SHIFT)        // Map SHIFT to LEFT CTRL
+	{
+		output[0] |= 2;
+		// TODO trigger alpha mode ?
+	}
+	if (modifier_keys & COLUMN_2nd)          // Map 2nd to LEFT ALT
+	{
+		output[0] |= 4;
+	}
+	if (modifier_keys & COLUMN_ALPHA)
+	{
+		// TODO trigger alpha mode.
+	}
+
+	if (modifier_keys & COLUMN_RIGHT)        // Map RIGHT to Keyboard RightArrow
+	{
+		output[nr_keys++] = 0x4F;
+	}
+	if (modifier_keys & COLUMN_DOWN)         // Map DOWN to Keyboard DownArrow
+	{
+		output[nr_keys++] = 0x51;
+	}
+	if (modifier_keys & COLUMN_LEFT)         // Map LEFT to Keyboard LeftArrow
+	{
+		output[nr_keys++] = 0x50;
+	}
+	if (modifier_keys & COLUMN_UP)           // Map UP to Keyboard UpArrow
+	{
+		output[nr_keys++] = 0x52;
+	}
+
+	// FIXME: for now, we're handling only four keys, but we'll have to clamp to MAX_OUTPUT_KEYS keys at some point.
 	if (keysPressed)
 	{
-		unsigned char buffer[8] = {0};
-		
-		buffer[2] = 0x04;
+		USB_SendInterruptData(0x01, output, 8);
 
-		//Figure out what to send
-		USB_SendInterruptData(0x01, buffer, 8);
-		
-		buffer[2] = 0x00;
-		USB_SendInterruptData(0x01, buffer, 8);
+		memset(output+2, 0, sizeof(output)-2);
+		USB_SendInterruptData(0x01, output, 8);
 	}
+
+	memcpy(keyboard_state, new_keyboard_state, sizeof(keyboard_state));
+
+	// Wait for a significant amount of time, so as to reduce duplicate keypresses.
+	asm volatile("moveq #-1,%%d0; 0: dbf %%d0,0b; 1: dbf %%d0,1b" : : : "d0", "cc");
 }
