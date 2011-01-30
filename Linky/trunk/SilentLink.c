@@ -2,7 +2,7 @@
 
 const unsigned char deviceDescriptor[] = {0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x40, 0x51, 0x04, 0x04, 0xE0, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01};
 const unsigned char configDescriptor[] = {0x09, 0x02, 0x20, 0x00, 0x01, 0x01, 0x00, 0xE0, 0x00, 0x09, 0x04, 0x00, 0x00, 0x02, 0xFF, 0x01, 0x00, 0x00,
-                           0x07, 0x05, 0x81, 0x02, 0x40, 0x00, 0x00, 0x07, 0x05, 0x02, 0x02, 0x40, 0x00};
+                           0x07, 0x05, 0x81, 0x02, 0x40, 0x00, 0x00, 0x07, 0x05, 0x02, 0x02, 0x40, 0x00, 0x00};
 
 USBPeripheral periph;
 INT_HANDLER saved_int_1;
@@ -13,6 +13,11 @@ unsigned int SilentLink_CurrentPacketOffset;
 unsigned int SilentLink_CurrentPacketSize;
 unsigned short SilentLink_CurrentPacketCommandID;
 
+void SilentLink_HandleIncomingData(unsigned char readyMap)
+{
+	printf("Data ready\n");
+}
+
 USBPeripheral SilentLink_GetInterface()
 {
   USBPeripheral ret = DEFAULT_USB_PERIPHERAL;
@@ -20,6 +25,8 @@ USBPeripheral SilentLink_GetInterface()
   //Set descriptor information
   ret.deviceDescriptor = deviceDescriptor;
   ret.configDescriptor = configDescriptor;
+  
+  ret.h_incomingData = SilentLink_HandleIncomingData;
 
   return ret;
 }
@@ -28,7 +35,7 @@ void SilentLink_Initialize()
 {
 	//Set default values
 	SilentLink_ReceivedVirtualPacket = NULL;
-	SilentLink_RawPacketMaxSize = 0x3FA;
+	SilentLink_RawPacketMaxSize = 0x3FF;
 	
 	periph = SilentLink_GetInterface();
 	Driver_SetPeripheralInterface(&periph);
@@ -185,7 +192,8 @@ void SilentLink_SendVirtualPacket(short commandID, unsigned char* buffer, unsign
 	}
 	
 	//Send it off
-	USB_SendBulkData(0x01, rawBuffer, remaining + 5);
+	USB_SendBulkData(0x01, rawBuffer, 5);
+	USB_SendBulkData(0x01, rawBuffer+5, remaining);
 
 	//Now receive acknowledgement
 	unsigned char ack[7];
@@ -200,7 +208,7 @@ void SilentLink_HandleVirtualPacket()
 	unsigned char buffer[5];
 	memcpy(buffer, SilentLink_ReceivedVirtualPacket, 5);
 	printf(" Start of data: %02X%02X%02X%02X%02X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
-	
+
 	switch (SilentLink_CurrentPacketCommandID)
 	{
 		case 0x0001: //Ping / Set Mode
