@@ -344,13 +344,11 @@ void USB_PeripheralInitialize()
 				break;
 		}
 
-		//if (i >= 0xFFFFFF)
-			//USB_PeripheralKill();
-		//else
-			//printf("Frame counter started\n");
+		if (i >= 0xFFFFFF)
+			USB_PeripheralKill();
 	}
-	//else
-		//USB_PeripheralKill();
+	else
+		USB_PeripheralKill();
 
 	//Wait for 200ms
 	timerValue = FiftyMsecTick;
