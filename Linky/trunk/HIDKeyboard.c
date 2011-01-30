@@ -179,12 +179,20 @@ void HIDKeyboard_Do(void)
 	unsigned short nr_keys = 0+2;
 
 	//! Queue up to MAX_OUTPUT_KEYS, drop excess keys.
-	inline unsigned char QueueKey(unsigned char key)
+	inline __attribute__((regparm(2))) void QueueKey(unsigned char normalkey, unsigned char alphakey)
 	{
 		keysPressed = 1;
 		if (nr_keys < MAX_OUTPUT_KEYS)
 		{
-			output[nr_keys++] = key;
+			// Trigger alpha mode if ALPHA or SHIFT is pressed.
+			if ((modifier_keys & COLUMN_ALPHA) || (modifier_keys & COLUMN_SHIFT))
+			{
+				output[nr_keys++] = alphakey;
+			}
+			else
+			{
+				output[nr_keys++] = normalkey;
+			}
 		}
 	}
 
@@ -198,6 +206,13 @@ void HIDKeyboard_Do(void)
 
 
 	// 1) Handle first row: ALPHA, DIAMOND, SHIFT, 2nd, RIGHT, DOWN, LEFT, UP
+	// TODO: generate special keys in reaction to the following combos:
+	// * HOME for 2nd + LEFT;
+	// * END for 2nd + RIGHT;
+	// * PgUp for 2nd + UP;
+	// * PgDn for 2nd + DOWN;
+	// * Ctrl+HOME for DIAMOND + UP;
+	// * Ctrl+END for DIAMOND + DOWN;
 	current_row = new_keyboard_state[0];
 	modifier_keys = current_row;
 
@@ -206,11 +221,11 @@ void HIDKeyboard_Do(void)
 		output[0] |= 1;
 		keysPressed = 1;
 	}
-	if (modifier_keys & COLUMN_SHIFT)        // Map SHIFT to LEFT CTRL
+	if (modifier_keys & COLUMN_SHIFT)        // Map SHIFT to LEFT SHIFT
 	{
 		output[0] |= 2;
 		keysPressed = 1;
-		// TODO trigger alpha mode ?
+		// This triggers alpha mode, in QueueKey.
 	}
 	if (modifier_keys & COLUMN_2nd)          // Map 2nd to LEFT ALT
 	{
@@ -219,24 +234,24 @@ void HIDKeyboard_Do(void)
 	}
 	if (modifier_keys & COLUMN_ALPHA)
 	{
-		// TODO trigger alpha mode.
+		// This triggers alpha mode, in QueueKey.
 	}
 
 	if (modifier_keys & COLUMN_RIGHT)        // Map RIGHT to Keyboard RightArrow
 	{
-		QueueKey(0x4F);
+		QueueKey(0x4F, 0x4F);
 	}
 	if (modifier_keys & COLUMN_DOWN)         // Map DOWN to Keyboard DownArrow
 	{
-		QueueKey(0x51);
+		QueueKey(0x51, 0x51);
 	}
 	if (modifier_keys & COLUMN_LEFT)         // Map LEFT to Keyboard LeftArrow
 	{
-		QueueKey(0x50);
+		QueueKey(0x50, 0x50);
 	}
 	if (modifier_keys & COLUMN_UP)           // Map UP to Keyboard UpArrow
 	{
-		QueueKey(0x52);
+		QueueKey(0x52, 0x52);
 	}
 
 
@@ -245,7 +260,7 @@ void HIDKeyboard_Do(void)
 	current_row = new_keyboard_state[1];
 	if (current_row & COLUMN_F5)             // Map F5 to F5
 	{
-		QueueKey(0x3E);
+		QueueKey(0x3E, 0x3E);
 	}
 	if (current_row & COLUMN_CLEAR)          // ?
 	{
@@ -255,25 +270,26 @@ void HIDKeyboard_Do(void)
 	{
 		// Nothing for now.
 	}
-	if (current_row & COLUMN_SLASH)          // Map / to Keypad /
+	if (current_row & COLUMN_SLASH)          // Map / to Keypad / | Keyboard e / E
 	{
-		QueueKey(0x54);
+		// TODO: generate ] in reaction to 2nd + /
+		QueueKey(0x54, 0x08);
 	}
-	if (current_row & COLUMN_TIMES)          // Map * to Keypad *
+	if (current_row & COLUMN_TIMES)          // Map * to Keypad * | Keyboard j / J
 	{
-		QueueKey(0x55);
+		QueueKey(0x55, 0x0D);
 	}
-	if (current_row & COLUMN_MINUS)          // Map - to Keypad -
+	if (current_row & COLUMN_MINUS)          // Map - to Keypad - | Keyboard o / O
 	{
-		QueueKey(0x56);
+		QueueKey(0x56, 0x12);
 	}
-	if (current_row & COLUMN_PLUS)           // Map + to Keypad +
+	if (current_row & COLUMN_PLUS)           // Map + to Keypad + | Keyboard u / U
 	{
-		QueueKey(0x57);
+		QueueKey(0x57, 0x18);
 	}
 	if (current_row & COLUMN_ENTER)          // Map ENTER to Keyboard Return
 	{
-		QueueKey(0x28);
+		QueueKey(0x28, 0x28);
 	}
 
 
@@ -282,35 +298,40 @@ void HIDKeyboard_Do(void)
 	current_row = new_keyboard_state[2];
 	if (current_row & COLUMN_F4)             // Map F4 to F4
 	{
-		QueueKey(0x3D);
+		QueueKey(0x3D, 0x3D);
 	}
 	if (current_row & COLUMN_BKSPC)          // Map Bkspc to Keyboard DELETE (Backspace)
 	{
-		QueueKey(0x2A);
+		// TODO: generate special keys in reaction to the following combos:
+		// * Keyboard delete forward for DIAMOND + BkSpc;
+		// * Keyboard Insert for 2nd + BkSpc;
+		QueueKey(0x2A, 0x2A);
 	}
 	if (current_row & COLUMN_T)              // Map T to Keyboard t / T
 	{
-		QueueKey(0x17);
+		QueueKey(0x17, 0x17);
 	}
-	if (current_row & COLUMN_COMMA)          // Map , to Keyboard ,
+	if (current_row & COLUMN_COMMA)          // Map , to Keyboard , | Keyboard d / D
 	{
-		QueueKey(0x36);
+		// TODO: generate [ in reaction to 2nd + ,
+		QueueKey(0x36, 0x07);
 	}
-	if (current_row & COLUMN_9)              // Map 9 to Keypad 9
+	if (current_row & COLUMN_9)              // Map 9 to Keypad 9 | Keyboard i / I
 	{
-		QueueKey(0x61);
+		// TODO: generate ; in reaction to 2nd + *
+		QueueKey(0x61, 0x0C);
 	}
-	if (current_row & COLUMN_6)              // Map 6 to Keypad 6
+	if (current_row & COLUMN_6)              // Map 6 to Keypad 6 | Keyboard n / N
 	{
-		QueueKey(0x5E);
+		QueueKey(0x5E, 0x11);
 	}
-	if (current_row & COLUMN_3)              // Map 3 to Keypad 3
+	if (current_row & COLUMN_3)              // Map 3 to Keypad 3 | Keyboard s / S
 	{
-		QueueKey(0x5B);
+		QueueKey(0x5B, 0x16);
 	}
-	if (current_row & COLUMN_SIGN)           // ?
+	if (current_row & COLUMN_SIGN)           // Map (-) to Keyboard Spacebar
 	{
-		// Nothing for now.
+		QueueKey(0x2C, 0x2C);
 	}
 
 
@@ -319,7 +340,7 @@ void HIDKeyboard_Do(void)
 	current_row = new_keyboard_state[3];
 	if (current_row & COLUMN_F3)             // Map F3 to F3
 	{
-		QueueKey(0x3C);
+		QueueKey(0x3C, 0x3C);
 	}
 	if (current_row & COLUMN_CATALOG)        // ?
 	{
@@ -327,27 +348,30 @@ void HIDKeyboard_Do(void)
 	}
 	if (current_row & COLUMN_Z)              // Map Z to Keyboard z / Z
 	{
-		QueueKey(0x1D);
+		QueueKey(0x1D, 0x1D);
 	}
-	if (current_row & COLUMN_RPAREN)         // TODO
+	if (current_row & COLUMN_RPAREN)         // Map ) to Keypad ) | Keyboard c / C
 	{
-		// TODO
+		// TODO: generate } in reaction to 2nd + )
+		QueueKey(0xB7, 0x06);
 	}
-	if (current_row & COLUMN_8)              // Map 8 to Keypad 8
+	if (current_row & COLUMN_8)              // Map 8 to Keypad 8 | Keyboard h / H
 	{
-		QueueKey(0x60);
+		QueueKey(0x60, 0x0B);
 	}
-	if (current_row & COLUMN_5)              // Map 5 to Keypad 5
+	if (current_row & COLUMN_5)              // Map 5 to Keypad 5 | Keyboard m / M
 	{
-		QueueKey(0x5D);
+		QueueKey(0x5D, 0x10);
 	}
-	if (current_row & COLUMN_2)              // Map 2 to Keypad 2
+	if (current_row & COLUMN_2)              // Map 2 to Keypad 2 | Keyboard r / R
 	{
-		QueueKey(0x5A);
+		// TODO: generate \ in reaction to 2nd + 2
+		QueueKey(0x5A, 0x15);
 	}
-	if (current_row & COLUMN_DOT)            // Map . to Keyboard .
+	if (current_row & COLUMN_DOT)            // Map . to Keyboard . | Keyboard w / W
 	{
-		QueueKey(0x37);
+		// TODO: generate > in reaction to 2nd + .
+		QueueKey(0x37, 0x1A);
 	}
 
 
@@ -356,35 +380,39 @@ void HIDKeyboard_Do(void)
 	current_row = new_keyboard_state[4];
 	if (current_row & COLUMN_F2)             // Map F2 to F2
 	{
-		QueueKey(0x3B);
+		QueueKey(0x3B, 0x3B);
 	}
 	if (current_row & COLUMN_MODE)           // ?
 	{
-		// Nothing for now.
+		// Nothing for now. May map underscore.
 	}
 	if (current_row & COLUMN_Y)              // Map Y to Keyboard y / Y
 	{
-		QueueKey(0x1C);
+		QueueKey(0x1C, 0x1C);
 	}
-	if (current_row & COLUMN_LPAREN)         // TODO
+	if (current_row & COLUMN_LPAREN)         // Map ( to Keypad ( | Keyboard b / B
 	{
-		// TODO
+		// TODO: generate { in reaction to 2nd + (
+		QueueKey(0xB6, 0x05);
 	}
-	if (current_row & COLUMN_7)              // Map 7 to Keypad 7
+	if (current_row & COLUMN_7)              // Map 7 to Keypad 7 | Keyboard g / G
 	{
-		QueueKey(0x5F);
+		QueueKey(0x5F, 0x0A);
 	}
-	if (current_row & COLUMN_4)              // Map 4 to Keypad 4
+	if (current_row & COLUMN_4)              // Map 4 to Keypad 4 | Keyboard l / L
 	{
-		QueueKey(0x5C);
+		// TODO: generate : in reaction to 2nd + 4
+		QueueKey(0x5C, 0x0F);
 	}
-	if (current_row & COLUMN_1)              // Map 1 to Keypad 1
+	if (current_row & COLUMN_1)              // Map 1 to Keypad 1 | Keyboard q / Q
 	{
-		QueueKey(0x59);
+		// TODO: generate " in reaction to 2nd + 1
+		QueueKey(0x59, 0x14);
 	}
-	if (current_row & COLUMN_0)              // Map 0 to Keypad 0
+	if (current_row & COLUMN_0)              // Map 0 to Keypad 0 | Keyboard v / V
 	{
-		QueueKey(0x62);
+		// TODO: generate < in reaction to 2nd + 0
+		QueueKey(0x62, 0x19);
 	}
 
 
@@ -393,7 +421,7 @@ void HIDKeyboard_Do(void)
 	current_row = new_keyboard_state[5];
 	if (current_row & COLUMN_F1)             // Map F1 to F1
 	{
-		QueueKey(0x3A);
+		QueueKey(0x3A, 0x3A);
 	}
 	if (current_row & COLUMN_HOME)           // ?
 	{
@@ -401,23 +429,29 @@ void HIDKeyboard_Do(void)
 	}
 	if (current_row & COLUMN_X)              // Map X to Keyboard x / X
 	{
-		QueueKey(0x1B);
+		QueueKey(0x1B, 0x1B);
 	}
-	if (current_row & COLUMN_EQUAL)          // Map = to Keyboard =
+	if (current_row & COLUMN_EQUAL)          // Map = to Keyboard = | Keyboard a / A
 	{
-		QueueKey(0x2E);
+		// TODO: generate ' in reaction to 2nd + =
+		QueueKey(0x2E, 0x04);
 	}
-	if (current_row & COLUMN_WITH)           // TODO
+	if (current_row & COLUMN_WITH)           // Map | to Keyboard | | Keyboard f / F
 	{
-		// TODO
+		// The pipe character needs the shift modifier. Set it if alpha or shift are not pressed.
+		if (!((modifier_keys & COLUMN_ALPHA) || (modifier_keys & COLUMN_SHIFT)))
+		{
+			output[0] |= 2;
+		}
+		QueueKey(0x31, 0x09);
 	}
-	if (current_row & COLUMN_EE)             // ?
+	if (current_row & COLUMN_EE)             // May EE to Keyboard k / K
 	{
-		// Nothing for now.
+		QueueKey(0x0E, 0x0E);
 	}
-	if (current_row & COLUMN_STO)            // Map Sto to Keyboard Tab
+	if (current_row & COLUMN_STO)            // Map Sto to Keyboard Tab | Keyboard p / P
 	{
-		QueueKey(0x2B);
+		QueueKey(0x2B, 0x13);
 	}
 	if (current_row & COLUMN_APPS)           // ?
 	{
@@ -430,7 +464,7 @@ void HIDKeyboard_Do(void)
 	current_row = new_keyboard_state[6];
 	if (current_row & COLUMN_ESC)            // Map ESC to Keyboard ESCAPE
 	{
-		QueueKey(0x29);
+		QueueKey(0x29, 0x29);
 	}
 
 
