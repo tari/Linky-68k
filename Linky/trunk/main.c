@@ -1,6 +1,7 @@
 #include <tigcclib.h>
 #include "usb.h"
 #include "HIDMouse.h"
+#include "HIDKeyboard.h"
 #include "SilentLink.h"
 
 void _main(void)
@@ -10,6 +11,7 @@ void _main(void)
   if (h == H_NULL) return;
   if (PopupAddText(h, -1, "Silent Link", 1) == H_NULL) return;
   if (PopupAddText(h, -1, "HID Mouse", 2) == H_NULL) return;
+  if (PopupAddText(h, -1, "HID Keyboard", 3) == H_NULL) return;
   short ID = PopupDo(h, CENTER, CENTER, 0);
   HeapFree(h);
   if (ID <= 0) return;
@@ -33,6 +35,11 @@ void _main(void)
 		case 2:
 		{
 			HIDMouse_Initialize();
+			break;
+		}
+		case 3:
+		{
+			HIDKeyboard_Initialize();
 			break;
 		}
 		default:
@@ -70,6 +77,11 @@ void _main(void)
 				HIDMouse_Do();
 				break;
 			}
+			case 3:
+			{
+				HIDKeyboard_Do();
+				break;
+			}
 		}
 	}
 
@@ -83,6 +95,11 @@ void _main(void)
 		case 2:
 		{
 			HIDMouse_Kill();
+			break;
+		}
+		case 3:
+		{
+			HIDKeyboard_Kill();
 			break;
 		}
 	}
