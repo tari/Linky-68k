@@ -13,11 +13,6 @@ unsigned int SilentLink_CurrentPacketOffset;
 unsigned int SilentLink_CurrentPacketSize;
 unsigned short SilentLink_CurrentPacketCommandID;
 
-void SilentLink_HandleIncomingData(unsigned char readyMap)
-{
-	printf("Data ready\n");
-}
-
 USBPeripheral SilentLink_GetInterface()
 {
   USBPeripheral ret = DEFAULT_USB_PERIPHERAL;
@@ -25,8 +20,6 @@ USBPeripheral SilentLink_GetInterface()
   //Set descriptor information
   ret.deviceDescriptor = deviceDescriptor;
   ret.configDescriptor = configDescriptor;
-  
-  ret.h_incomingData = SilentLink_HandleIncomingData;
 
   return ret;
 }
@@ -200,14 +193,22 @@ void SilentLink_SendVirtualPacket(short commandID, unsigned char* buffer, unsign
 	SilentLink_ReceiveData(ack, 7);
 }
 
+//This is the function you want to modify to add support for new commands/requests.
+//You have access to the following:
+//	unsigned short SilentLink_CurrentPacketCommandID
+//	unsigned int   SilentLink_CurrentPacketSize
+//	void*          SilentLink_ReceivedVirtualPacket
+//Handle the command in the switch statement below by just acting on it,
+//  responding with virtual packets (with SilentLink_SendVirtualPacket),
+//  or whatever you want. It has already been acknowledged elsewhere.
 void SilentLink_HandleVirtualPacket()
 {
-	printf("Virtual packet received:\n");
+	/*printf("Virtual packet received:\n");
 	printf(" Command ID: %04X\n", SilentLink_CurrentPacketCommandID);
 	printf(" Size: %04X\n", SilentLink_CurrentPacketSize);
 	unsigned char buffer[5];
 	memcpy(buffer, SilentLink_ReceivedVirtualPacket, 5);
-	printf(" Start of data: %02X%02X%02X%02X%02X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
+	printf(" Start of data: %02X%02X%02X%02X%02X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);*/
 
 	switch (SilentLink_CurrentPacketCommandID)
 	{
@@ -238,7 +239,7 @@ void SilentLink_Do()
 			unsigned int rawPacketLength = buffer[3] | (buffer[2] << 8); //| (buffer[1] << 16) | (buffer[0] << 24);
 			unsigned int rawPacketType = buffer[4];
 
-			printf("Received packet, length %04X, type %02X\n", rawPacketLength, rawPacketType);
+			//printf("Received packet, length %04X, type %02X\n", rawPacketLength, rawPacketType);
 
 			switch (rawPacketType)
 			{
@@ -290,6 +291,7 @@ void SilentLink_Do()
 					
 					//Clear this virtual packet from memory now that we're done with it
 					free(SilentLink_ReceivedVirtualPacket);
+					SilentLink_ReceivedVirtualPacket = NULL;
 					
 					break;
 				}

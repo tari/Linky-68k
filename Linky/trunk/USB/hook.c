@@ -138,6 +138,29 @@ void USB_HandleControlPacket(unsigned char* packet)
 			{
 				case 0x01: //clear feature
 				{
+					volatile unsigned char endpoint = *USB_SELECTED_ENDPOINT_ADDR;
+					volatile unsigned char value;
+
+					*USB_SELECTED_ENDPOINT_ADDR = (unsigned char)(wIndex & 0x7F);
+					if ((wIndex & 0x80))
+					{
+						//Incoming endpoint, clear the halt condition
+						value = *USB_OUTGOING_CMD_ADDR;
+						value &= 0xEF;
+						value |= 0x40;
+						*USB_OUTGOING_CMD_ADDR = value;
+					}
+					else
+					{
+						//Outgoing endpoint, clear the halt condition
+						value = *USB_INCOMING_CMD_ADDR;
+						value &= 0xDF;
+						value |= 0x80;
+						*USB_INCOMING_CMD_ADDR = value;
+					}
+					
+					*USB_SELECTED_ENDPOINT_ADDR = endpoint;
+					
 					USB_FinishControlRequest();
 					handled = 1;
 					break;
