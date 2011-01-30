@@ -50,7 +50,7 @@ Use Return Value=0
 Enable Error Return=0
 Save Screen=1
 [File Editing]
-Open File=C:\Documents and Settings\Brandon\Desktop\calcstuff\Linky\trunk\main.c
+Open File=C:\Documents and Settings\Brandon\Desktop\calcstuff\Linky\trunk\HIDKeyboard.c
 [Included Files]
 C File 1=main.c
 C File 2=SilentLink.c
@@ -60,3 +60,5 @@ C File 5=HIDMouse.c
 Header File 1=SilentLink.h
 Header File 2=USB\usb.h
 Header File 3=HIDMouse.h
+Header File 4=HIDKeyboard.h
+C File 6=HIDKeyboard.c
