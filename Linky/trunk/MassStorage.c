@@ -8,6 +8,7 @@ const unsigned char maxLUN[] = {0x00};
 USBPeripheral periph;
 INT_HANDLER saved_int_1;
 INT_HANDLER saved_int_5;
+unsigned char sectorBuffer[512];
 
 int MassStorage_UnknownControlRequest(unsigned char bmRequestType, unsigned char bRequest, unsigned int wValue, unsigned int wIndex, unsigned int wLength)
 {
@@ -98,13 +99,160 @@ unsigned int MassStorage_ReceiveData(unsigned char* buffer, unsigned int count)
 	return bytesReceived;
 }
 
+const unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
+{
+	//Fetch the data for this LBA and return it
+	unsigned int i;
+	for (i = 0; i < 512; i++)
+		sectorBuffer[i] = 0xFF;
+	
+	return sectorBuffer;
+}
+
+void MassStorage_HandleWriteSector(unsigned long long int LBA, const unsigned char* sectorData)
+{
+	//Do nothing with this data, we don't care what the PC thinks it's doing
+}
+
 void MassStorage_Do(void)
 {
 	if (USB_IsDataReady(0x02))
 	{
-		unsigned char buffer[4];
-		MassStorage_ReceiveData(buffer, 4);
+		unsigned char buffer[31];
+		MassStorage_ReceiveData(buffer, 31);
 
-		printf("Received: %02X%02X%02X%02X\n", buffer[0], buffer[1], buffer[2], buffer[3]);
+		unsigned int dataTransferLength = (buffer[8] & 0xFF) | (buffer[9] << 8);
+		unsigned char dataExpectedBack = buffer[12] & 0x80;
+		unsigned char command = buffer[15];
+
+		printf("Received: L: %04X, D: %02X, C: %02X\n", dataTransferLength, dataExpectedBack, command);
+
+		switch (command)
+		{
+			case 0x12: //inquiry
+			{
+				//Send back what it wants
+				unsigned char response[36] = {0};
+				
+				response[1] = 0x80; //removable media
+				response[3] = 0x01; //because the UFI spec says so
+				response[4] = 0x1F; //additioanl length
+				memcpy(response+8, "BrandonW", 8);
+				memcpy(response+16, "USB Flash Drive", 15);
+				memcpy(response+32, "0.01", 4);
+				
+				//Send it off
+				USB_SendBulkData(0x01, response, 36);
+				break;
+			}
+			case 0x23: //read format capacities
+			{
+				//Send back what it wants
+				unsigned char response[12];
+				
+				response[3] = 0x08; //capacity list liength
+				response[6] = 0x10; //number of blocks (sectors) (2MB)
+				response[8] = 0x01; //reserved/descriptor code (maximum unformatted memory)
+				response[10] = 0x02; //block length (512 bytes/sector)
+				
+				//Send it off
+				USB_SendBulkData(0x01, response, 12);
+				break;
+			}
+			case 0x25: //read capacity
+			{
+				//Send back what it wants
+				unsigned char response[8] = {0};
+				
+				response[2] = 0x0F; //last logical block address
+				response[3] = 0xFF;
+				response[6] = 0x02; //block length (512 bytes/sector)
+				
+				//Send it off
+				USB_SendBulkData(0x01, response, 8);
+				break;
+			}
+			case 0x1A: //mode sense?
+			{
+				//Send back what it wants
+				unsigned char response[8] = {0};
+				
+				response[0] = 0x12;
+				response[7] = 0x1C;
+				
+				//Send it off
+				USB_SendBulkData(0x01, response, 8);
+				break;
+			}
+			case 0x28: //read sector
+			{
+				//Send back a sector
+				unsigned long long int baseLBA = (buffer[19] | (buffer[20] << 8)) * 0x10000;
+				baseLBA += (buffer[17] | (buffer[18] << 8));
+				unsigned char response[512];
+				unsigned int sectors = dataTransferLength / 512;
+				unsigned int i;
+				for (i = 0; i < sectors; i++)
+				{
+					//Handle each sector request
+					memcpy(response, MassStorage_HandleReadSector(baseLBA), 512);
+					baseLBA++;
+
+					USB_SendBulkData(0x01, response, 512);
+				}
+				break;
+			}
+			case 0x2A: //write sector
+			{
+				//Handle this new sector data
+				unsigned long long int baseLBA = (buffer[19] | (buffer[20] << 8)) * 0x10000;
+				baseLBA += (buffer[17] | (buffer[18] << 8));
+				unsigned char data[512];
+				
+				MassStorage_ReceiveData(data, dataTransferLength);
+				
+				//Figure out how many sectors this is
+				unsigned int sectors = dataTransferLength / 512;
+				unsigned int i;
+				for (i = 0; i < sectors; i++)
+				{
+					//Handle each sector
+					MassStorage_HandleWriteSector(baseLBA, data+(i*512));
+					baseLBA++;
+				}
+				break;
+			}
+			default:
+			{
+				//Uh? Just do whatever's indicated and hope the host is happy...
+				if (dataTransferLength > 0)
+				{
+					//Data's supposed to go somewhere...do we send or receive?
+					if (dataExpectedBack)
+					{
+						//We send back, so echo back garbage
+						USB_SendBulkData(0x01, buffer, dataTransferLength);
+					}
+					else
+					{
+						//We receive, so get whatever
+						void* ptr = malloc(dataTransferLength);
+						MassStorage_ReceiveData(ptr, dataTransferLength);
+						free(ptr);
+						ptr = NULL;
+					}
+				}
+				break;
+			}
+		}
+		
+		//Send back a Command Status Wrapper
+		unsigned char csw[13] = {0};
+		csw[0] = 'U';
+		csw[1] = 'S';
+		csw[2] = 'B';
+		csw[3] = 'S';
+		memcpy(csw+4, buffer+4, 4);
+		USB_SendBulkData(0x01, csw, 13);
 	}
 }
