@@ -185,7 +185,7 @@ void USB_HandleControlPacket(unsigned char* packet)
 	}
 }
 
-void HandleUSBInterrupt()
+void HandleUSBInterrupt(void)
 {
 	unsigned char status1 = *USB_INT_STATUS1_ADDR;
 	unsigned char status2 = *USB_INT_STATUS2_ADDR;
@@ -358,7 +358,7 @@ DEFINE_INT_HANDLER(MyInt3)
 	HandleUSBInterrupt();
 }
 
-void Driver_Initialize()
+void Driver_Initialize(void)
 {
 	//Set default values for everything
 	peripheralInterface = NULL;
@@ -368,7 +368,7 @@ void Driver_Initialize()
   SetIntVec(AUTO_INT_3, MyInt3);
 }
 
-void Driver_Kill()
+void Driver_Kill(void)
 {
 	//Restore the old handler
 	SetIntVec(AUTO_INT_3, OldInt3);

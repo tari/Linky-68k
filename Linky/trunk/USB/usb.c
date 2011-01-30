@@ -11,7 +11,7 @@ void USB_IndicateNotReady(unsigned char endpoint)
 	incomingDataReadyMap &= ~(endpoint << 1);
 }
 
-void USB_KillPower()
+void USB_KillPower(void)
 {
 	//Set bit 1, which cuts power to the USB controller
   *USB_BASE_POWER_ADDR = (unsigned char)2;
@@ -22,14 +22,14 @@ void USB_KillPower()
 }
 
 //HACK: I'm pretty sure this routine is completely useless, but I could be wrong
-unsigned char USB_OutgoingCmdDummyRead()
+unsigned char USB_OutgoingCmdDummyRead(void)
 {
 	volatile unsigned char ret = *USB_OUTGOING_CMD_ADDR;
 
 	return ret;
 }
 
-void USB_FinishControlRequest()
+void USB_FinishControlRequest(void)
 {
 	*USB_SELECTED_ENDPOINT_ADDR = (unsigned char)0x00;
 	USB_OutgoingCmdDummyRead();
@@ -38,7 +38,7 @@ void USB_FinishControlRequest()
 	USB_OutgoingCmdDummyRead();
 }
 
-void USB_FinishControlOutput()
+void USB_FinishControlOutput(void)
 {
 	*USB_SELECTED_ENDPOINT_ADDR = (unsigned char)0x00;
 	*USB_OUTGOING_CMD_ADDR |= (unsigned char)0x0A;
@@ -271,7 +271,7 @@ DEFINE_INT_HANDLER(MyTimerHandler)
 	FiftyMsecTick++;
 }
 
-void USB_PeripheralInitialize()
+void USB_PeripheralInitialize(void)
 {
 	INT_HANDLER AutoInt5Backup = GetIntVec(AUTO_INT_5);
 	SetIntVec(AUTO_INT_5, MyTimerHandler);
@@ -357,7 +357,7 @@ void USB_PeripheralInitialize()
 	SetIntVec(AUTO_INT_5, AutoInt5Backup);
 }
 
-void USB_PeripheralKill()
+void USB_PeripheralKill(void)
 {
 	INT_HANDLER AutoInt5Backup = GetIntVec(AUTO_INT_5);
 	SetIntVec(AUTO_INT_5, MyTimerHandler);

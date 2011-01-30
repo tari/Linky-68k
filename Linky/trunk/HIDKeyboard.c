@@ -16,7 +16,7 @@ USBPeripheral periph;
 INT_HANDLER saved_int_1;
 INT_HANDLER saved_int_5;
 
-void HIDKeyboard_HandleSetConfiguration()
+void HIDKeyboard_HandleSetConfiguration(void)
 {
 	//Set up the outgoing interrupt pipe
 	USB_SetupOutgoingPipe(0x01, Type_Interrupt, 0x08);
@@ -61,7 +61,7 @@ int HIDKeyboard_UnknownControlRequest(unsigned char bmRequestType, unsigned char
 	return handled;
 }
 
-USBPeripheral HIDKeyboard_GetInterface()
+USBPeripheral HIDKeyboard_GetInterface(void)
 {
   USBPeripheral ret = DEFAULT_USB_PERIPHERAL;
 
@@ -76,7 +76,7 @@ USBPeripheral HIDKeyboard_GetInterface()
   return ret;
 }
 
-void HIDKeyboard_Initialize()
+void HIDKeyboard_Initialize(void)
 {
 	periph = HIDKeyboard_GetInterface();
 	Driver_SetPeripheralInterface(&periph);
@@ -92,7 +92,7 @@ void HIDKeyboard_Initialize()
 	USB_PeripheralInitialize();
 }
 
-void HIDKeyboard_Kill()
+void HIDKeyboard_Kill(void)
 {
 	//Cut power to the port
 	USB_PeripheralKill();
@@ -102,7 +102,7 @@ void HIDKeyboard_Kill()
   SetIntVec(AUTO_INT_5, saved_int_5);
 }
 
-void HIDKeyboard_Do()
+void HIDKeyboard_Do(void)
 {
 	unsigned char keysPressed = 0;
 	
