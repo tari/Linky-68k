@@ -50,17 +50,17 @@ Use Return Value=0
 Enable Error Return=0
 Save Screen=1
 [File Editing]
-Open File=C:\Documents and Settings\Brandon\Desktop\calcstuff\Linky\trunk\MassStorage.c
+Open File=C:\Documents and Settings\Brandon\Desktop\calcstuff\Linky\trunk\main.c
 [Included Files]
 C File 1=main.c
 C File 2=SilentLink.c
 C File 3=USB\usb.c
 C File 4=USB\hook.c
 C File 5=HIDMouse.c
+C File 6=HIDKeyboard.c
+C File 7=MassStorage.c
 Header File 1=SilentLink.h
 Header File 2=USB\usb.h
 Header File 3=HIDMouse.h
 Header File 4=HIDKeyboard.h
-C File 6=HIDKeyboard.c
 Header File 5=MassStorage.h
-C File 7=MassStorage.c
