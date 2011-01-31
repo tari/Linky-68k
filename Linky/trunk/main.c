@@ -76,19 +76,21 @@ unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 
 void _main(void)
 {
+	short ID = -1;
 	//Pick the driver to load
-  HANDLE h = PopupNew("Select Driver", 0);
-  if (h == H_NULL) return;
-  if (PopupAddText(h, -1, "Silent Link", 1) == H_NULL) return;
-  if (PopupAddText(h, -1, "HID Mouse", 2) == H_NULL) return;
-  if (PopupAddText(h, -1, "HID Keyboard", 3) == H_NULL) return;
-  if (PopupAddText(h, -1, "Mass Storage", 4) == H_NULL) return;
-  short ID = PopupDo(h, CENTER, CENTER, 0);
-  HeapFree(h);
-  if (ID <= 0) return;
-  
+	HANDLE h = PopupNew("Select Driver", 0);
+	if (h == H_NULL) return;
+	if (PopupAddText(h, -1, "Silent Link", 1) == H_NULL) goto free_dialog;
+	if (PopupAddText(h, -1, "HID Mouse", 2) == H_NULL) goto free_dialog;
+	if (PopupAddText(h, -1, "HID Keyboard", 3) == H_NULL) goto free_dialog;
+	if (PopupAddText(h, -1, "Mass Storage", 4) == H_NULL) goto free_dialog;
+	ID = PopupDo(h, CENTER, CENTER, 0);
+free_dialog:
+	HeapFree(h);
+	if (ID <= 0) return;
+
 	//Initialize the driver
-  Driver_Initialize();
+	Driver_Initialize();
 
 	switch(ID)
 	{
@@ -115,34 +117,40 @@ void _main(void)
 			DialogAddRequest(d, 3, 18, "Flash App. Name:", 0, 10, 10);
 
 			int cont = (DialogDo(d, CENTER, CENTER, imageName, NULL) == KEY_ENTER);
+			HeapFree(d);
+			FontSetSys(F_6x8);
 			if (cont)
 			{
 				MassStorage_Initialize(MassStorage_HandleReadSector, NULL);
 			}
-			HeapFree(d);
-			FontSetSys(F_6x8);
-			
-			if (!cont) return;
+			else
+			{
+				goto kill_exit;
+			}
 			break;
 		}
 		default:
 		{
-			return;
+			goto kill_exit;
 		}
 	}
 
 	//Display a message to the user
-  clrscr();
-  printf("Connect a USB cable to\n");
-  printf("your calculator now.\n\n");
-  printf("Press [ESC] to quit.\n\n");
+	clrscr();
+	printf("Connect a USB cable to\n");
+	printf("your calculator now.\n\n");
+	printf("Press [ON] to quit.\n\n");
 
 	//Main key loop
 	int timer = 0;
-	while(1)
+	while (1)
 	{
-		if (_keytest(RR_ESC))
+		if (!(*((volatile unsigned char *)0x60001A) & 2))
+		{
+			// ON key pressed, acknowledge interrupt and exit.
+			*((volatile unsigned char *)0x60001A) = 0xFF;
 			break;
+		}
 
 		switch(ID)
 		{
@@ -217,7 +225,8 @@ void _main(void)
 			break;
 		}
 	}
-	
+
+kill_exit:
 	//Shut down the driver
 	Driver_Kill();
 
