@@ -266,9 +266,309 @@ void USB_SetupOutgoingPipe(unsigned char endpoint, USB_EndpointType type, unsign
 	*USB_INIT_RELATED1_ADDR = (unsigned char)0xA1;
 }
 
+void USB_WaitOutgoingCmdSuccess()
+{
+	unsigned int i;
+	for (i = 0; i < 0xFFFF; i++)
+	{
+		if (*USB_OUTGOING_DATA_SUCCESS_ADDR)
+			break;
+	}
+}
+
+unsigned char USB_SendControlCmd(unsigned char cmd)
+{
+	*USB_SELECTED_ENDPOINT_ADDR = (unsigned char)0x00;
+	*USB_OUTGOING_CMD_ADDR = cmd;
+	
+	USB_WaitOutgoingCmdSuccess();
+	
+	return *USB_OUTGOING_CMD_ADDR & 0x14;
+}
+
+unsigned char USB_GetMaxPacketSize0(void)
+{
+	//Buffer the request data
+	const unsigned char request[] = {0x80, 0x06, 0x00, 0x01, 0x00, 0x00, 0x08, 0x00};
+	unsigned char response[8];
+	unsigned int i;
+	unsigned char status;
+	for (i = 0; i < sizeof(request); i++)
+		*USB_ENDPOINT0_DATA_ADDR = request[i];
+
+	//Send off the request
+	status = USB_SendControlCmd(0x0A);
+	
+	//Send an IN token?
+	status = USB_SendControlCmd(0x20);
+	
+	//Get the response
+	for (i = 0; i < sizeof(response); i++)
+		response[i] = *USB_ENDPOINT0_DATA_ADDR;
+
+	//Finish it all off
+	status = USB_SendControlCmd(0x42);
+
+	//Return bMaxPacketSize0
+	return response[7];
+}
+
+unsigned char USB_SendControlRequest(unsigned char* request, unsigned char* responseBuffer, unsigned char bytesExpectedToReceive)
+{
+	unsigned char* responseAddress = responseBuffer;
+	unsigned int i;
+	unsigned char status;
+	
+	//Buffer the request data
+	for (i = 0; i < 8; i++)
+		*USB_ENDPOINT0_DATA_ADDR = request[i];
+	
+	//Send off the request
+	status = USB_SendControlCmd(0x0A);
+	
+	if (bytesExpectedToReceive == 0)
+	{
+		//Just go to the status stage
+		status = USB_SendControlCmd(0x60);
+	}
+	else
+	{
+		//Receive all the data first
+		unsigned int count = 0;
+
+		while (bytesExpectedToReceive > 0)
+		{
+			//Request IN data
+			USB_SendControlCmd(0x20);
+			
+			//Receive it
+			count = bytesExpectedToReceive > 0x40 ? 0x40 : bytesExpectedToReceive; //HACK: assuming bMaxPacketSize0 is 0x40
+			for (i = 0; i < count; i++)
+				responseAddress[i] = *USB_ENDPOINT0_DATA_ADDR;
+			
+			responseAddress += count;
+			bytesExpectedToReceive -= count;
+		}
+		
+		//Now go to the status stage
+		status = USB_SendControlCmd(0x42);
+	}
+	
+	return 0;
+}
+
+unsigned char USB_GetDescriptor(unsigned char type, unsigned char* responseBuffer, unsigned int bytesExpectedToReceive)
+{
+	unsigned char request[] = {0x80, 0x06, 0x00, type, 0x00, 0x00, (bytesExpectedToReceive & 0xFF), (bytesExpectedToReceive >> 8)};
+	
+	USB_SendControlRequest(request, responseBuffer, bytesExpectedToReceive);
+	
+	return 0;
+}
+
+unsigned char USB_SetHostAddress(unsigned char address)
+{
+	//Buffer the request data
+	unsigned char request[] = {0x00, 0x05, address, 0x00, 0x00, 0x00, 0x00, 0x00};
+	
+	USB_SendControlRequest(request, NULL, 0);
+	USB_SetFunctionAddress(address);
+	
+	return 0;
+}
+
 DEFINE_INT_HANDLER(MyTimerHandler)
 {
 	FiftyMsecTick++;
+}
+
+int USB_HostInitialize(void)
+{
+	INT_HANDLER AutoInt5Backup = GetIntVec(AUTO_INT_5);
+	SetIntVec(AUTO_INT_5, MyTimerHandler);
+
+	volatile unsigned char val;
+	unsigned long i = 0;
+	volatile unsigned long timerValue;
+	int ret = 0;
+
+	val = *USB_INIT_4C_ADDR;
+	if (val == 0x1A || val == 0x5A)
+	{
+		//Already initialized
+	}
+	else
+	{
+		val = *USB_INIT_4D_ADDR;
+		if (val & 0x20)
+			*USB_INT_MASK_ADDR = 0x10;
+		
+		*USB_INIT_4C_ADDR = (unsigned char)0x00;
+		*USB_INT_ENABLE_ADDR = (unsigned char)0x01;
+		*USB_BASE_POWER_ADDR = (unsigned char)0x02;
+		*USB_INIT_4A_ADDR = (unsigned char)0x20;
+		
+		*USB_INIT_4B_ADDR = (unsigned char)0x00;
+		val = *USB_INIT_3A_ADDR;
+		if (val & 0x08)
+			*USB_INIT_4B_ADDR = (unsigned char)0x20;
+		*USB_BASE_POWER_ADDR = (unsigned char)0x00;
+		
+		//Wait for 100ms
+		timerValue = FiftyMsecTick;
+		while (FiftyMsecTick < timerValue+2);
+		
+		val = *USB_INIT_3A_ADDR;
+		if (val & 0x08)
+			*USB_BASE_POWER_ADDR = (unsigned char)0x44;
+		*USB_BASE_POWER_ADDR = (unsigned char)0xC4;
+		
+		//Wait on 4C
+		i = 0;
+		do
+		{
+			val = *USB_INIT_4C_ADDR;
+			
+			if (++i > 0xFFFFFF)
+				break;
+		}while (val != 0x12 && val != 0x52);
+		
+		if (i < 0xFFFFFF)
+		{
+			val = *USB_INIT_4D_ADDR; //freak if & 0x20 is true
+			val = *USB_INIT_3A_ADDR;
+			if (val & 0x08)
+			{
+				//Do it one way...
+
+				//Wait for 100ms
+				timerValue = FiftyMsecTick;
+				while (FiftyMsecTick < timerValue+2);
+				
+				val = *USB_INIT_4D_ADDR ;//freak if 0x40 is true
+				
+				*USB_INIT_3A_ADDR &= (unsigned char)~0x02;
+				*USB_INIT_39_ADDR |= (unsigned char)0x02;
+				*USB_INIT_4C_ADDR = (unsigned char)0x08;
+				*USB_MODE_ADDR = (unsigned char)0x01;
+
+				//Wait on 4D
+				i = 0;
+				do
+				{
+					val = *USB_INIT_4C_ADDR;
+					
+					if (++i > 0xFFFFFF)
+						break;
+				}while (!(val & 0x40));
+				
+				if (i < 0xFFFFFF)
+					*USB_INIT_39_ADDR &= (unsigned char)~0x02;
+			}
+			else
+			{
+				//Or do it the other way
+				*USB_INIT_4C_ADDR = (unsigned char)0x08;
+				
+				//Wait on 81
+				i = 0;
+				do
+				{
+					val = *USB_UNKNOWN_81_ADDR;
+					
+					if (++i > 0xFFFFFF)
+						break;
+				}while (val & 0x20);
+				
+				if (i < 0xFFFFFF)
+				{
+					*USB_MODE_ADDR = (unsigned char)0x01;
+
+					//Wait for 200ms
+					timerValue = FiftyMsecTick;
+					while (FiftyMsecTick < timerValue+4);
+				}
+			}
+			
+			if (i < 0xFFFFFF)
+			{
+				//Wrap this up
+				*USB_DATA_OUT_EN_ADDR1 = (unsigned char)0xFF;
+				*USB_UNKNOWN_92_ADDR = (unsigned char)0x00;
+				*USB_DATA_IN_EN_ADDR1 = (unsigned char)0x0E;
+				*USB_INIT_RELATED1_ADDR = (unsigned char)0xA1;
+				
+				//Wait on 81
+				i = 0;
+				do
+				{
+					val = *USB_UNKNOWN_81_ADDR;
+					
+					if (++i > 0xFFFFFF)
+						break;
+				}while (!(val & 0x40));
+
+				if (i < 0xFFFFFF)
+				{
+					//"Host bit" should be set now
+					val = *USB_MODE_ADDR; //freak if & 0x04 is not true
+
+					//Now wait on the frame counter to start
+					for( i = 0; i < 0x5FFFF; i++)
+					{
+						if ((unsigned char)*USB_FRAME_COUNTER_LOW_ADDR > 0)
+							break;
+					}
+
+					//Stuff...
+					*USB_INT_ENABLE_ADDR = (unsigned char)0x00;
+					*USB_UNKNOWN_81_ADDR = (unsigned char)0x08;
+
+					//Wait for 200ms
+					timerValue = FiftyMsecTick;
+					while (FiftyMsecTick < timerValue+4);
+					
+					*USB_UNKNOWN_81_ADDR = (unsigned char)0x00;
+					
+					//Wait for 200ms
+					timerValue = FiftyMsecTick;
+					while (FiftyMsecTick < timerValue+4);
+					
+					//Set the address to zero
+					*USB_FUNCTION_ADDRESS_ADDR = (unsigned char)0x00;
+					
+					//Wait for 100ms
+					timerValue = FiftyMsecTick;
+					while (FiftyMsecTick < timerValue+2);
+
+					//TODO: We should go ahead and get the max packet size and set the address here
+					USB_GetMaxPacketSize0();
+					
+					//Wait for 100ms
+					timerValue = FiftyMsecTick;
+					while (FiftyMsecTick < timerValue+2);
+
+					USB_SetHostAddress(0x02);
+					
+					//Make sure we catch the A cable unplugged event later on
+					*USB_INT_ENABLE_ADDR = (unsigned char)0x01;
+					*USB_INT_MASK_ADDR = (unsigned char)0x20;
+				}
+			}
+		}
+	}
+	
+	if (i >= 0xFFFFFF)
+		ret = -1;
+	
+	SetIntVec(AUTO_INT_5, AutoInt5Backup);
+	
+	return ret;
+}
+
+void USB_HostKill(void)
+{
+	USB_PeripheralKill(); //maybe?! I think it works for both...
 }
 
 void USB_PeripheralInitialize(void)
