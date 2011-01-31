@@ -213,7 +213,7 @@ free_dialog:
 					
 					unsigned char buffer[8];
 					USB_GetDescriptor(0x01, buffer, 8);
-					
+
 					unsigned int i;
 					for (i = 0; i < 8; i++)
 						printf("%02X", buffer[i]);
