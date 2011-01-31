@@ -84,6 +84,7 @@ void _main(void)
 	if (PopupAddText(h, -1, "HID Mouse", 2) == H_NULL) goto free_dialog;
 	if (PopupAddText(h, -1, "HID Keyboard", 3) == H_NULL) goto free_dialog;
 	if (PopupAddText(h, -1, "Mass Storage", 4) == H_NULL) goto free_dialog;
+	if (PopupAddText(h, -1, "Generic Host", 5) == H_NULL) goto free_dialog;
 	ID = PopupDo(h, CENTER, CENTER, 0);
 free_dialog:
 	HeapFree(h);
@@ -127,6 +128,11 @@ free_dialog:
 			{
 				goto kill_exit;
 			}
+			break;
+		}
+		case 5:
+		{
+			//Do nothing
 			break;
 		}
 		default:
