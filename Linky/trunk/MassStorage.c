@@ -101,11 +101,41 @@ unsigned int MassStorage_ReceiveData(unsigned char* buffer, unsigned int count)
 
 const unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 {
-	//Fetch the data for this LBA and return it
+	//Find the "FlppyImg" Flash application and get a pointer to its data
+	HANDLE id = TIOS_EV_getAppID("FlppyImg");
+	unsigned char* myptr = NULL;
+
+	if (id != H_NULL)
+	{
+		//printf("Found app handle: %04X\n", id);
+		
+		void* ptr = HeapDeref(id);
+		//printf("Found ACB ptr: %04X%04X\n", (unsigned int)((unsigned long)(ptr) >> 16), (unsigned int)ptr);
+		void* ptr2 = (unsigned long*)*((unsigned long*)(ptr+12));
+		//printf("Test: %04X\n", (unsigned int)*(unsigned int*)ptr2);
+		do
+		{
+			ptr2 += 2;
+		} while ((*(unsigned int*)ptr2 & 0xFFFF) != 0xC0DE);
+		ptr2 += 2;
+		unsigned char* ptr3 = (unsigned char*)ptr2;
+		//printf("First bytes: %02X %02X %02X\n", *ptr3, *(ptr3+1), *(ptr3+2));
+		myptr = ptr3;
+	}
+	
+	//Use the LBA to calculate the address of the sector data
+	while (LBA > 0)
+	{
+		myptr += 512;
+		LBA--;
+	}
+
+	//Copy it to our buffer
 	unsigned int i;
 	for (i = 0; i < 512; i++)
-		sectorBuffer[i] = 0xFF;
+		sectorBuffer[i] = myptr[i];
 	
+	//Return it!
 	return sectorBuffer;
 }
 
@@ -187,8 +217,8 @@ void MassStorage_Do(void)
 			case 0x28: //read sector
 			{
 				//Send back a sector
-				unsigned long long int baseLBA = (buffer[19] | (buffer[20] << 8)) * 0x10000;
-				baseLBA += (buffer[17] | (buffer[18] << 8));
+				unsigned long long int baseLBA = (buffer[18] | (buffer[17] << 8)) * 0x10000;
+				baseLBA += (buffer[20] | (buffer[19] << 8));
 				unsigned char response[512];
 				unsigned int sectors = dataTransferLength / 512;
 				unsigned int i;
