@@ -311,9 +311,18 @@ void HIDKeyboard_Do(void)
 
 	// 2) Handle second row: F5, CLEAR, ^, /, *, -, +, ENTER
 	current_row = new_keyboard_state[1];
-	if (current_row & COLUMN_F5)             // Map F5 to F5
+	if (current_row & COLUMN_F5)             // Map F5 to F5, unless...
 	{
-		QueueKey(0x3E, 0x3E);
+		if (IS_2nd_PRESSED)
+		{
+			// Generate Keyboard F10 for 2nd + F5
+			CLR_LEFT_ALT
+			QueueKey(0x43, 0x43);
+		}
+		else
+		{
+			QueueKey(0x3E, 0x3E);
+		}
 	}
 	if (current_row & COLUMN_CLEAR)          // ?
 	{
@@ -357,9 +366,18 @@ void HIDKeyboard_Do(void)
 
 	// 3) Handle third row: F4, BkSpc, T, comma, 9, 6, 3, (-)
 	current_row = new_keyboard_state[2];
-	if (current_row & COLUMN_F4)             // Map F4 to F4
+	if (current_row & COLUMN_F4)             // Map F4 to F4, unless...
 	{
-		QueueKey(0x3D, 0x3D);
+		if (IS_2nd_PRESSED)
+		{
+			// Generate Keyboard F9 for 2nd + F4
+			CLR_LEFT_ALT
+			QueueKey(0x42, 0x42);
+		}
+		else
+		{
+			QueueKey(0x3D, 0x3D);
+		}
 	}
 	if (current_row & COLUMN_BKSPC)          // Map Bkspc to Keyboard DELETE (Backspace), unless...
 	{
@@ -427,9 +445,18 @@ void HIDKeyboard_Do(void)
 
 	// 4) Handle fourth row: F3, CATALOG, Z, ), 8, 5, 2, .
 	current_row = new_keyboard_state[3];
-	if (current_row & COLUMN_F3)             // Map F3 to F3
+	if (current_row & COLUMN_F3)             // Map F3 to F3, unless...
 	{
-		QueueKey(0x3C, 0x3C);
+		if (IS_2nd_PRESSED)
+		{
+			// Generate Keyboard F8 for 2nd + F3
+			CLR_LEFT_ALT
+			QueueKey(0x41, 0x41);
+		}
+		else
+		{
+			QueueKey(0x3C, 0x3C);
+		}
 	}
 	if (current_row & COLUMN_CATALOG)        // ?
 	{
@@ -500,9 +527,18 @@ void HIDKeyboard_Do(void)
 
 	// 5) Handle fifth row: F2, MODE, Y, (, 7, 4, 1, 0
 	current_row = new_keyboard_state[4];
-	if (current_row & COLUMN_F2)             // Map F2 to F2
+	if (current_row & COLUMN_F2)             // Map F2 to F2, unless...
 	{
-		QueueKey(0x3B, 0x3B);
+		if (IS_2nd_PRESSED)
+		{
+			// Generate Keyboard F7 for 2nd + F2
+			CLR_LEFT_ALT
+			QueueKey(0x40, 0x40);
+		}
+		else
+		{
+			QueueKey(0x3B, 0x3B);
+		}
 	}
 	if (current_row & COLUMN_MODE)           // ?
 	{
@@ -586,9 +622,18 @@ void HIDKeyboard_Do(void)
 
 	// 6) Handle sixth row: F1, HOME, X, =, |, EE, STO, APPS
 	current_row = new_keyboard_state[5];
-	if (current_row & COLUMN_F1)             // Map F1 to F1
+	if (current_row & COLUMN_F1)             // Map F1 to F1, unless...
 	{
-		QueueKey(0x3A, 0x3A);
+		if (IS_2nd_PRESSED)
+		{
+			// Generate Keyboard F6 for 2nd + F1
+			CLR_LEFT_ALT
+			QueueKey(0x3F, 0x3F);
+		}
+		else
+		{
+			QueueKey(0x3A, 0x3A);
+		}
 	}
 	if (current_row & COLUMN_HOME)           // ?
 	{
