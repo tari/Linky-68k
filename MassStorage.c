@@ -115,7 +115,7 @@ void MassStorage_Do(void)
 		unsigned char dataExpectedBack = buffer[12] & 0x80;
 		unsigned char command = buffer[15];
 
-		printf("Received: L: %04X, D: %02X, C: %02X\n", dataTransferLength, dataExpectedBack, command);
+		//printf("Received: L: %04X, D: %02X, C: %02X\n", dataTransferLength, dataExpectedBack, command);
 
 		switch (command)
 		{
