@@ -41,7 +41,7 @@ unsigned char sectorBuffer[512];
 
 unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 {
-	//Find the "FlppyImg" Flash application and get a pointer to its data
+	//Find the specified Flash application and get a pointer to its data
 	HANDLE id = TIOS_EV_getAppID(imageName);
 	unsigned char* sptr = NULL;
 	unsigned int i;
@@ -157,7 +157,7 @@ void _main(void)
 				{
 					timer++;
 					
-					if (timer > 10)
+					if (timer > 300)
 					{
 						timer = 0;
 						HIDMouse_Sensitivity++;
@@ -168,7 +168,7 @@ void _main(void)
 				{
 					timer++;
 					
-					if (timer > 10)
+					if (timer > 300)
 					{
 						timer = 0;
 						HIDMouse_Sensitivity--;
