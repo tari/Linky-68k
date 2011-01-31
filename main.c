@@ -5,6 +5,44 @@
 #include "SilentLink.h"
 #include "MassStorage.h"
 
+char imageName[11];
+unsigned char sectorBuffer[512];
+
+unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
+{
+	//Find the "FlppyImg" Flash application and get a pointer to its data
+	HANDLE id = TIOS_EV_getAppID(imageName);
+	unsigned char* sptr = NULL;
+	unsigned int i;
+
+	if (id != H_NULL)
+	{
+		unsigned long* ptr = (unsigned long*)(*((unsigned long*)(HeapDeref(id) + 12)));
+		do { ptr++; } while ((*ptr & 0xFFFF) != 0xC0DE);
+		ptr++; sptr = (unsigned char*)ptr;
+
+		//Use the LBA to calculate the address of the sector data
+		while (LBA > 0)
+		{
+			sptr += 512;
+			LBA--;
+		}
+
+		//Copy it to our buffer
+		for (i = 0; i < 512; i++)
+			sectorBuffer[i] = sptr[i];
+	}
+	else
+	{
+		//Can't find the application, so just assume a buffer of all 0xFFs
+		for (i = 0; i < 512; i++)
+			sectorBuffer[i] = 0xFF;
+	}
+	
+	//Return it!
+	return sectorBuffer;
+}
+
 void _main(void)
 {
 	//Pick the driver to load
@@ -20,12 +58,6 @@ void _main(void)
   
 	//Initialize the driver
   Driver_Initialize();
-
-	//Display a message to the user
-  clrscr();
-  printf("Connect a USB cable to\n");
-  printf("your calculator now.\n\n");
-  printf("Press [ESC] to quit.\n\n");
 
 	switch(ID)
 	{
@@ -46,7 +78,20 @@ void _main(void)
 		}
 		case 4:
 		{
-			MassStorage_Initialize();
+ 			HANDLE d = DialogNewSimple(140, 40);
+			DialogAddXFlags(d, DF_SCREEN_SAVE, XF_ALLOW_VARLINK | XF_VARLINK_SELECT_ONLY, 0, 0, 0);
+			DialogAddTitle(d, "Select Mass Storage Image", BT_OK, BT_CANCEL);
+			DialogAddRequest(d, 3, 18, "Flash App. Name:", 0, 10, 10);
+
+			int cont = (DialogDo(d, CENTER, CENTER, imageName, NULL) == KEY_ENTER);
+			if (cont)
+			{
+				MassStorage_Initialize(MassStorage_HandleReadSector, NULL);
+			}
+			HeapFree(d);
+			FontSetSys(F_6x8);
+			
+			if (!cont) return;
 			break;
 		}
 		default:
@@ -55,7 +100,14 @@ void _main(void)
 		}
 	}
 
+	//Display a message to the user
+  clrscr();
+  printf("Connect a USB cable to\n");
+  printf("your calculator now.\n\n");
+  printf("Press [ESC] to quit.\n\n");
+
 	//Main key loop
+	int timer = 0;
 	while(1)
 	{
 		if (_keytest(RR_ESC))
@@ -72,14 +124,28 @@ void _main(void)
 			{
 				if (_keytest(RR_PLUS))
 				{
-					HIDMouse_Sensitivity++;
-					printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
+					timer++;
+					
+					if (timer > 10)
+					{
+						timer = 0;
+						HIDMouse_Sensitivity++;
+						printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
+					}
 				}
 				else if (_keytest(RR_MINUS))
 				{
-					HIDMouse_Sensitivity--;
-					printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
+					timer++;
+					
+					if (timer > 10)
+					{
+						timer = 0;
+						HIDMouse_Sensitivity--;
+						printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
+					}
 				}
+				else
+					timer = 0;
 				
 				HIDMouse_Do();
 				break;

@@ -8,7 +8,8 @@ const unsigned char maxLUN[] = {0x00};
 USBPeripheral periph;
 INT_HANDLER saved_int_1;
 INT_HANDLER saved_int_5;
-unsigned char sectorBuffer[512];
+Handle_ReadSectorRequest  h_readSector;
+Handle_WriteSectorRequest h_writeSector;
 
 int MassStorage_UnknownControlRequest(unsigned char bmRequestType, unsigned char bRequest, unsigned int wValue, unsigned int wIndex, unsigned int wLength)
 {
@@ -52,7 +53,7 @@ USBPeripheral MassStorage_GetInterface(void)
   return ret;
 }
 
-void MassStorage_Initialize(void)
+void MassStorage_Initialize(Handle_ReadSectorRequest readSector, Handle_WriteSectorRequest writeSector)
 {
 	periph = MassStorage_GetInterface();
 	Driver_SetPeripheralInterface(&periph);
@@ -66,6 +67,10 @@ void MassStorage_Initialize(void)
 	//Restart the controller
 	USB_PeripheralKill();
 	USB_PeripheralInitialize();
+	
+	//Set read/write sector handlers
+	h_readSector = readSector;
+	h_writeSector = writeSector;
 }
 
 void MassStorage_Kill(void)
@@ -97,51 +102,6 @@ unsigned int MassStorage_ReceiveData(unsigned char* buffer, unsigned int count)
 	}
 	
 	return bytesReceived;
-}
-
-const unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
-{
-	//Find the "FlppyImg" Flash application and get a pointer to its data
-	HANDLE id = TIOS_EV_getAppID("FlppyImg");
-	unsigned char* myptr = NULL;
-
-	if (id != H_NULL)
-	{
-		//printf("Found app handle: %04X\n", id);
-		
-		void* ptr = HeapDeref(id);
-		//printf("Found ACB ptr: %04X%04X\n", (unsigned int)((unsigned long)(ptr) >> 16), (unsigned int)ptr);
-		void* ptr2 = (unsigned long*)*((unsigned long*)(ptr+12));
-		//printf("Test: %04X\n", (unsigned int)*(unsigned int*)ptr2);
-		do
-		{
-			ptr2 += 2;
-		} while ((*(unsigned int*)ptr2 & 0xFFFF) != 0xC0DE);
-		ptr2 += 2;
-		unsigned char* ptr3 = (unsigned char*)ptr2;
-		//printf("First bytes: %02X %02X %02X\n", *ptr3, *(ptr3+1), *(ptr3+2));
-		myptr = ptr3;
-	}
-	
-	//Use the LBA to calculate the address of the sector data
-	while (LBA > 0)
-	{
-		myptr += 512;
-		LBA--;
-	}
-
-	//Copy it to our buffer
-	unsigned int i;
-	for (i = 0; i < 512; i++)
-		sectorBuffer[i] = myptr[i];
-	
-	//Return it!
-	return sectorBuffer;
-}
-
-void MassStorage_HandleWriteSector(unsigned long long int LBA, const unsigned char* sectorData)
-{
-	//Do nothing with this data, we don't care what the PC thinks it's doing
 }
 
 void MassStorage_Do(void)
@@ -221,11 +181,16 @@ void MassStorage_Do(void)
 				baseLBA += (buffer[20] | (buffer[19] << 8));
 				unsigned char response[512];
 				unsigned int sectors = dataTransferLength / 512;
-				unsigned int i;
+				unsigned int i, j;
 				for (i = 0; i < sectors; i++)
 				{
+					//Default the data to all 0xFFs
+					for (j = 0; j < 512; j++)
+						response[j] = 0xFF;
+
 					//Handle each sector request
-					memcpy(response, MassStorage_HandleReadSector(baseLBA), 512);
+					if (h_readSector != NULL)
+						memcpy(response, h_readSector(baseLBA), 512);
 					baseLBA++;
 
 					USB_SendBulkData(0x01, response, 512);
@@ -235,19 +200,20 @@ void MassStorage_Do(void)
 			case 0x2A: //write sector
 			{
 				//Handle this new sector data
-				unsigned long long int baseLBA = (buffer[19] | (buffer[20] << 8)) * 0x10000;
-				baseLBA += (buffer[17] | (buffer[18] << 8));
-				unsigned char data[512];
-				
+				unsigned long long int baseLBA = (buffer[18] | (buffer[17] << 8)) * 0x10000;
+				baseLBA += (buffer[20] | (buffer[19] << 8));
+				unsigned char data[dataTransferLength];
+
 				MassStorage_ReceiveData(data, dataTransferLength);
-				
+
 				//Figure out how many sectors this is
 				unsigned int sectors = dataTransferLength / 512;
 				unsigned int i;
 				for (i = 0; i < sectors; i++)
 				{
 					//Handle each sector
-					MassStorage_HandleWriteSector(baseLBA, data+(i*512));
+					if (h_writeSector != NULL)
+						h_writeSector(baseLBA, data+(i*512));
 					baseLBA++;
 				}
 				break;
