@@ -5,6 +5,37 @@
 #include "SilentLink.h"
 #include "MassStorage.h"
 
+// Definitions from TIFS
+typedef HANDLE AppID;
+
+#define MAX_APPLET_NAME_SIZE (8)
+
+typedef struct
+{
+   unsigned long magic;
+   unsigned char name[MAX_APPLET_NAME_SIZE];
+   unsigned char zeros[24];
+   unsigned short flags;
+   unsigned long dataLen;
+   unsigned long codeOffset;
+   unsigned long initDataOffset;
+   unsigned long initDataLen;
+   unsigned long optlen;
+} AppHdr;
+
+typedef struct SACB
+{
+   unsigned short flags;
+   AppID myID;
+   AppID next;
+   AppID prev;
+   unsigned long publicstorage;
+   const AppHdr * appHeader;
+   const unsigned char * certhdr;
+   pFrame appData;
+} ACB;
+// End definitions from TIFS
+
 char imageName[11];
 unsigned char sectorBuffer[512];
 
@@ -17,8 +48,8 @@ unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 
 	if (id != H_NULL)
 	{
-		unsigned long* ptr = (unsigned long*)(*((unsigned long*)(HeapDeref(id) + 12)));
-		do { ptr++; } while ((*ptr & 0xFFFF) != 0xC0DE);
+		unsigned short* ptr = (unsigned short*)(((ACB *)HeapDeref(id))->appHeader);
+		do { ptr++; } while (*ptr != 0xC0DE);
 		ptr++; sptr = (unsigned char*)ptr;
 
 		//Use the LBA to calculate the address of the sector data
@@ -38,7 +69,7 @@ unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 		for (i = 0; i < 512; i++)
 			sectorBuffer[i] = 0xFF;
 	}
-	
+
 	//Return it!
 	return sectorBuffer;
 }
