@@ -107,6 +107,8 @@ void Driver_Kill();
 void Driver_SetPeripheralInterface(USBPeripheral* interface);
 
 //USB functions
+int USB_HostInitialize(void);
+void USB_HostKill(void);
 int USB_IsDataReady(unsigned char endpoint);
 void USB_KillPower(void);
 void USB_PeripheralInitialize(void);
@@ -121,5 +123,6 @@ int USB_ReceiveInterruptData(unsigned char endpoint, unsigned char* data, unsign
 void USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int count);
 int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned int count);
 void USB_SetupOutgoingPipe(unsigned char endpoint, USB_EndpointType type, unsigned char maxPacketSize);
+unsigned char USB_GetDescriptor(unsigned char type, unsigned char* responseBuffer, unsigned int bytesExpectedToReceive);
 
 #endif

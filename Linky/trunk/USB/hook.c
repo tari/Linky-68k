@@ -212,6 +212,20 @@ void HandleUSBInterrupt(void)
 			USB_PeripheralKill();
 			OSTimerRestart(2);
 		}
+		else if ((status2 & 0x10) != 0)
+		{
+			//Handle USB A-cable connect
+			printf("Host init returned: %02X\n", USB_HostInitialize());
+			OSTimerRestart(2);
+		}
+		else if ((status2 & 0x20) != 0)
+		{
+			//Handle USB A-cable disconnect
+			printf("A cable disconnected\n");
+			USB_HostKill();
+			printf("A cable disconn handle done\n");
+			OSTimerRestart(2);
+		}
 		else
 		{
 			//Unknown 0x56 event
@@ -249,10 +263,8 @@ void HandleUSBInterrupt(void)
 			if (mode & 0x04)
 			{
 				//Calculator is in host mode, handle data waiting accordingly
-				//USB_HandleHostDataWaiting();
-				//OSTimerRestart(2);
-				//Let the AMS deal with it
-				ExecuteHandler(OldInt3);
+				printf("Incoming: 82 %02X, 84 %02X, 86 %02X\n", outgoingDataSuccess, incomingDataReady, dataStatus);
+				OSTimerRestart(2);
 			}
 			else
 			{

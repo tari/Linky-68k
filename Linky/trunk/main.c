@@ -205,6 +205,34 @@ free_dialog:
 				MassStorage_Do();
 				break;
 			}
+			case 5:
+			{
+				if (_keytest(RR_CATALOG))
+				{
+					while (_keytest(RR_CATALOG));
+					
+					unsigned char buffer[8];
+					USB_GetDescriptor(0x01, buffer, 8);
+					
+					unsigned int i;
+					for (i = 0; i < 8; i++)
+						printf("%02X", buffer[i]);
+					printf("\n");
+				}
+				if (_keytest(RR_APPS))
+				{
+					while (_keytest(RR_APPS));
+					
+					unsigned char buffer[8];
+					USB_GetDescriptor(0x02, buffer, 8);
+					
+					unsigned int i;
+					for (i = 0; i < 8; i++)
+						printf("%02X", buffer[i]);
+					printf("\n");
+				}
+				break;
+			}
 		}
 	}
 
