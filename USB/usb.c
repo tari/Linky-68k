@@ -266,14 +266,18 @@ void USB_SetupOutgoingPipe(unsigned char endpoint, USB_EndpointType type, unsign
 	*USB_INIT_RELATED1_ADDR = (unsigned char)0xA1;
 }
 
-void USB_WaitOutgoingCmdSuccess()
+unsigned char USB_WaitOutgoingCmdSuccess()
 {
+	const unsigned int timeout = 0xFFFF;
 	unsigned int i;
-	for (i = 0; i < 0xFFFF; i++)
+
+	for (i = 0; i < timeout; i++)
 	{
 		if (*USB_OUTGOING_DATA_SUCCESS_ADDR)
 			break;
 	}
+	
+	return i >= timeout ? -1 : 0;
 }
 
 unsigned char USB_SendControlCmd(unsigned char cmd)
@@ -295,7 +299,7 @@ unsigned char USB_GetMaxPacketSize0(void)
 	unsigned char status;
 	for (i = 0; i < sizeof(request); i++)
 		*USB_ENDPOINT0_DATA_ADDR = request[i];
-
+		
 	//Send off the request
 	status = USB_SendControlCmd(0x0A);
 	
