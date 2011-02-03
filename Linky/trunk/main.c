@@ -5,6 +5,12 @@
 #include "SilentLink.h"
 #include "MassStorage.h"
 
+void DoHostMode(void);
+void DoSilentLink(void);
+void DoHIDMouse(void);
+void DoHIDKeyboard(void);
+void DoMassStorage(void);
+
 // Definitions from TIFS
 typedef HANDLE AppID;
 
@@ -74,81 +80,254 @@ unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 	return sectorBuffer;
 }
 
+INT_HANDLER main_saved_int_1;
+INT_HANDLER main_saved_int_5;
+
+void SaveKeyInterrupts()
+{
+	//Save AUTO_INT_1 and AUTO_INT_5 interrupts because they interfere with key reading
+	main_saved_int_1 = GetIntVec(AUTO_INT_1);
+	main_saved_int_5 = GetIntVec(AUTO_INT_5);
+	SetIntVec(AUTO_INT_1, DUMMY_HANDLER);
+	SetIntVec(AUTO_INT_5, DUMMY_HANDLER);
+}
+
+void RestoreKeyInterrupts()
+{
+	//Restore AUTO_INT_1 and AUTO_INT_5 interrupts
+  SetIntVec(AUTO_INT_1, main_saved_int_1);
+  SetIntVec(AUTO_INT_5, main_saved_int_5);
+}
+
 void _main(void)
 {
-	short ID = -1;
-	//Pick the driver to load
-	HANDLE h = PopupNew("Select Driver", 0);
-	if (h == H_NULL) return;
-	if (PopupAddText(h, -1, "Silent Link", 1) == H_NULL) goto free_dialog;
-	if (PopupAddText(h, -1, "HID Mouse", 2) == H_NULL) goto free_dialog;
-	if (PopupAddText(h, -1, "HID Keyboard", 3) == H_NULL) goto free_dialog;
-	if (PopupAddText(h, -1, "Mass Storage", 4) == H_NULL) goto free_dialog;
-	if (PopupAddText(h, -1, "Generic Host", 5) == H_NULL) goto free_dialog;
-	ID = PopupDo(h, CENTER, CENTER, 0);
-free_dialog:
-	HeapFree(h);
-	if (ID <= 0) return;
+	//Start the main menu
+	clrscr();
+	HANDLE m = MenuNew(MF_TOOLBOX, 160, 0);
+	if (m == H_NULL) return;
+	DynMenuAdd(m, 0, "Tools", 1, DMF_TEXT | DMF_TOP_SUB);
+	DynMenuAdd(m, 1, "Descriptors", 5, DMF_TEXT | DMF_CHILD_SUB);
+	DynMenuAdd(m, 5, "Device", 6, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 5, "Configuration", 7, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 5, "String", 8, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 1, "Logging", 9, DMF_TEXT | DMF_CHILD_SUB);
+	DynMenuAdd(m, 9, "Log Viewer", 10, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 9, "Start Log", 11, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 9, "Stop Log", 12, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 0, "Demos", 2, DMF_TEXT | DMF_TOP_SUB);
+	DynMenuAdd(m, 2, "Host", 13, DMF_TEXT | DMF_CHILD_SUB);
+	DynMenuAdd(m, 2, "Peripheral", 14, DMF_TEXT | DMF_CHILD_SUB);
+	DynMenuAdd(m, 13, "Dummy", 15, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 14, "Silent Link", 16, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 14, "HID Mouse", 17, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 14, "HID Keyboard", 18, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 14, "Mass Storage", 19, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 0, "About", 3, DMF_TEXT | DMF_TOP);
+	DynMenuAdd(m, 0, "Quit", 4, DMF_TEXT | DMF_TOP);
+	HANDLE e = MenuBegin(NULL, 0, 0, MBF_HMENU | MBF_MAX_MENU_WIDTH, 160, m);
+	short result, key;
+	do
+	{
+		key = ngetchx();
+
+		if (key == KEY_ESC)
+		{
+			break;
+		}
+		else
+		{
+			result = MenuKey(e, key);
+			if (result == 4)
+				break;
+			
+			if (result != M_NOTMENUKEY)
+			{
+				MenuOff(e);
+
+				if (result == 15)
+					DoHostMode();
+				else if (result == 16)
+					DoSilentLink();
+				else if (result == 17)
+					DoHIDMouse();
+				else if (result == 18)
+					DoHIDKeyboard();
+				else if (result == 19)
+					DoMassStorage();
+				else if (result == 3)
+				{
+					//Draw about dialog
+					HANDLE h = DialogNewSimple(150, 50);
+					DialogAddTitle(h, "Linky", BT_OK, BT_NONE);
+					DialogAddText(h, 3, 15, "Brandon Wilson");
+					DialogAddText(h, 3, 21, "Lionel Debroux");
+					DialogAddText(h, 3, 30, "http://brandonw.net/svn/calcstuff/Linky");
+					DialogDo(h, CENTER, CENTER, NULL, NULL);
+					HeapFree(h);
+				}
+
+				clrscr();
+				MenuOn(e);
+			}
+		}
+
+		ST_busy(ST_NORMAL);
+	} while (1);
+	MenuEnd(e);
+	MenuUpdate();
+}
+
+void DoHostMode(void)
+{
+	//Display a message to the user
+	clrscr();
+	printf("Connect a USB cable to\n");
+	printf("your calculator now.\n\n");
+	printf("Press [CLEAR] to quit.\n\n");
 
 	//Initialize the driver
 	Driver_Initialize();
-
-	switch(ID)
+	
+	//Main key loop
+	SaveKeyInterrupts();
+	while (1)
 	{
-		case 1:
-		{
-			SilentLink_Initialize();
+		if (_keytest(RR_CLEAR))
 			break;
-		}
-		case 2:
-		{
-			HIDMouse_Initialize();
-			break;
-		}
-		case 3:
-		{
-			HIDKeyboard_Initialize();
-			break;
-		}
-		case 4:
-		{
- 			HANDLE d = DialogNewSimple(140, 40);
-			DialogAddXFlags(d, DF_SCREEN_SAVE, XF_ALLOW_VARLINK | XF_VARLINK_SELECT_ONLY, 0, 0, 0);
-			DialogAddTitle(d, "Select Mass Storage Image", BT_OK, BT_CANCEL);
-			DialogAddRequest(d, 3, 18, "Flash App. Name:", 0, 10, 10);
 
-			int cont = (DialogDo(d, CENTER, CENTER, imageName, NULL) == KEY_ENTER);
-			HeapFree(d);
-			FontSetSys(F_6x8);
-			if (cont)
-			{
-				MassStorage_Initialize(MassStorage_HandleReadSector, NULL);
-			}
-			else
-			{
-				goto kill_exit;
-			}
-			break;
-		}
-		case 5:
+		if (_keytest(RR_CATALOG))
 		{
-			//Do nothing
-			break;
+			while (_keytest(RR_CATALOG));
+			
+			unsigned char buffer[8];
+			USB_GetDescriptor(0x01, buffer, 8);
+	
+			unsigned int i;
+			for (i = 0; i < 8; i++)
+				printf("%02X", buffer[i]);
+			printf("\n");
 		}
-		default:
+
+		if (_keytest(RR_APPS))
 		{
-			goto kill_exit;
+			while (_keytest(RR_APPS));
+			
+			unsigned char buffer[8];
+			USB_GetDescriptor(0x02, buffer, 8);
+			
+			unsigned int i;
+			for (i = 0; i < 8; i++)
+				printf("%02X", buffer[i]);
+			printf("\n");
 		}
 	}
+	RestoreKeyInterrupts();
 
+	//Shut down the driver
+	Driver_Kill();
+
+	//Flush the keyboard buffer
+	GKeyFlush();
+}
+
+void DoSilentLink(void)
+{
+	//Display a message to the user
+	clrscr();
+	printf("Connect a USB cable to\n");
+	printf("your calculator now.\n\n");
+	printf("Press [CLEAR] to quit.\n\n");
+
+	//Initialize the driver
+	Driver_Initialize();
+	
+	SilentLink_Initialize();
+
+	SaveKeyInterrupts();
+	while (!_keytest(RR_CLEAR))
+		SilentLink_Do();
+	RestoreKeyInterrupts();
+		
+	SilentLink_Kill();
+
+	//Shut down the driver
+	Driver_Kill();
+
+	//Flush the keyboard buffer
+	GKeyFlush();
+}
+
+void DoHIDMouse(void)
+{
+	//Display a message to the user
+	clrscr();
+	printf("Connect a USB cable to\n");
+	printf("your calculator now.\n\n");
+	printf("Press [CLEAR] to quit.\n\n");
+
+	//Initialize the driver
+	Driver_Initialize();
+	
+	HIDMouse_Initialize();
+	
+	//Main key loop
+	int timer = 0;
+	SaveKeyInterrupts();
+	while (!_keytest(RR_CLEAR))
+	{
+		if (_keytest(RR_PLUS))
+		{
+			timer++;
+			
+			if (timer > 300)
+			{
+				timer = 0;
+				HIDMouse_Sensitivity++;
+				printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
+			}
+		}
+		else if (_keytest(RR_MINUS))
+		{
+			timer++;
+			
+			if (timer > 300)
+			{
+				timer = 0;
+				HIDMouse_Sensitivity--;
+				printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
+			}
+		}
+		else
+			timer = 0;
+		
+		HIDMouse_Do();
+	}
+	RestoreKeyInterrupts();
+
+	HIDMouse_Kill();
+
+	//Shut down the driver
+	Driver_Kill();
+
+	//Flush the keyboard buffer
+	GKeyFlush();
+}
+
+void DoHIDKeyboard()
+{
 	//Display a message to the user
 	clrscr();
 	printf("Connect a USB cable to\n");
 	printf("your calculator now.\n\n");
 	printf("Press [ON] to quit.\n\n");
 
+	//Initialize the driver
+	Driver_Initialize();
+
+	HIDKeyboard_Initialize();
+
 	//Main key loop
-	int timer = 0;
+	SaveKeyInterrupts();
 	while (1)
 	{
 		if (!(*((volatile unsigned char *)0x60001A) & 2))
@@ -157,113 +336,54 @@ free_dialog:
 			*((volatile unsigned char *)0x60001A) = 0xFF;
 			break;
 		}
-
-		switch(ID)
-		{
-			case 1:
-			{
-				SilentLink_Do();
-				break;
-			}
-			case 2:
-			{
-				if (_keytest(RR_PLUS))
-				{
-					timer++;
-					
-					if (timer > 300)
-					{
-						timer = 0;
-						HIDMouse_Sensitivity++;
-						printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
-					}
-				}
-				else if (_keytest(RR_MINUS))
-				{
-					timer++;
-					
-					if (timer > 300)
-					{
-						timer = 0;
-						HIDMouse_Sensitivity--;
-						printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
-					}
-				}
-				else
-					timer = 0;
-				
-				HIDMouse_Do();
-				break;
-			}
-			case 3:
-			{
-				HIDKeyboard_Do();
-				break;
-			}
-			case 4:
-			{
-				MassStorage_Do();
-				break;
-			}
-			case 5:
-			{
-				if (_keytest(RR_CATALOG))
-				{
-					while (_keytest(RR_CATALOG));
-					
-					unsigned char buffer[8];
-					USB_GetDescriptor(0x01, buffer, 8);
-
-					unsigned int i;
-					for (i = 0; i < 8; i++)
-						printf("%02X", buffer[i]);
-					printf("\n");
-				}
-				if (_keytest(RR_APPS))
-				{
-					while (_keytest(RR_APPS));
-					
-					unsigned char buffer[8];
-					USB_GetDescriptor(0x02, buffer, 8);
-					
-					unsigned int i;
-					for (i = 0; i < 8; i++)
-						printf("%02X", buffer[i]);
-					printf("\n");
-				}
-				break;
-			}
-		}
+		
+		HIDKeyboard_Do();
 	}
+	RestoreKeyInterrupts();
 
-	switch(ID)
-	{
-		case 1:
-		{
-			SilentLink_Kill();
-			break;
-		}
-		case 2:
-		{
-			HIDMouse_Kill();
-			break;
-		}
-		case 3:
-		{
-			HIDKeyboard_Kill();
-			break;
-		}
-		case 4:
-		{
-			MassStorage_Kill();
-			break;
-		}
-	}
+	HIDKeyboard_Kill();
 
-kill_exit:
 	//Shut down the driver
 	Driver_Kill();
 
 	//Flush the keyboard buffer
 	GKeyFlush();
+}
+
+void DoMassStorage()
+{
+	HANDLE d = DialogNewSimple(140, 40);
+	DialogAddXFlags(d, DF_SCREEN_SAVE, XF_ALLOW_VARLINK | XF_VARLINK_SELECT_ONLY, 0, 0, 0);
+	DialogAddTitle(d, "Select Mass Storage Image", BT_OK, BT_CANCEL);
+	DialogAddRequest(d, 3, 18, "Flash App. Name:", 0, 10, 10);
+
+	int cont = (DialogDo(d, CENTER, CENTER, imageName, NULL) == KEY_ENTER);
+	HeapFree(d);
+	FontSetSys(F_6x8);
+	if (cont)
+	{
+		//Display a message to the user
+		clrscr();
+		printf("Connect a USB cable to\n");
+		printf("your calculator now.\n\n");
+		printf("Press [CLEAR] to quit.\n\n");
+		
+		//Initialize the driver
+		Driver_Initialize();
+
+		MassStorage_Initialize(MassStorage_HandleReadSector, NULL);
+
+		SaveKeyInterrupts();
+		while (!_keytest(RR_CLEAR))
+			MassStorage_Do();
+		RestoreKeyInterrupts();
+		
+		MassStorage_Kill();
+		
+		//Shut down the driver
+		Driver_Kill();
+		
+		//Flush the keyboard buffer
+		GKeyFlush();
+	}
 }
