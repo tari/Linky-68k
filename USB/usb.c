@@ -1,6 +1,18 @@
 #include <tigcclib.h>
 #include "usb.h"
 
+USBPeripheral* peripheralInterface;         //Pointer to USB peripheral mode setup/interface information
+INT_HANDLER OldInt3;                        //Backup of old AUTO_INT_3 interrupt vector
+unsigned char bMaxPacketSize0;              //used in control pipe communication
+const unsigned char* controlDataAddress;    //used in sending back control request responses
+unsigned int responseBytesRemaining;        //used in sending back control request responses
+int USBState;                               //used in sending back control request responses
+int newAddressReceived;                     //used in setting the address from the interrupt
+int wAddress;                               //used in setting the address from the interrupt
+int bytesBuffered[0x0F];                    //keeps track of buffered incoming data per pipe
+unsigned char incomingDataReadyMap;         //keeps track of incoming data per pipe
+
+
 int USB_IsDataReady(unsigned char endpoint)
 {
 	return (incomingDataReadyMap & (endpoint << 1)) ? 1 : 0;
@@ -14,11 +26,11 @@ void USB_IndicateNotReady(unsigned char endpoint)
 void USB_KillPower(void)
 {
 	//Set bit 1, which cuts power to the USB controller
-  *USB_BASE_POWER_ADDR = (unsigned char)2;
+	*USB_BASE_POWER_ADDR = (unsigned char)2;
 
 	//Enable all USB-related interrupts
-  *USB_INT_ENABLE_ADDR = (char)1;
-  *USB_INT_MASK_ADDR = (char)0xFF;
+	*USB_INT_ENABLE_ADDR = (char)1;
+	*USB_INT_MASK_ADDR = (char)0xFF;
 }
 
 //HACK: I'm pretty sure this routine is completely useless, but I could be wrong
