@@ -169,9 +169,11 @@ void HIDKeyboard_Kill(void)
 #define SET_LEFT_CTRL   {output[0] |=  1;}
 #define SET_LEFT_SHIFT  {output[0] |=  2;}
 #define SET_LEFT_ALT    {output[0] |=  4;}
+#define SET_LEFT_GUI    {output[0] |=  8;}
 #define CLR_LEFT_CTRL   {output[0] &= ~1;}
 #define CLR_LEFT_SHIFT  {output[0] &= ~2;}
 #define CLR_LEFT_ALT    {output[0] &= ~4;}
+#define CLR_LEFT_GUI    {output[0] &= ~8;}
 
 #define IS_ALPHA_PRESSED    modifier_keys & COLUMN_ALPHA
 #define IS_DIAMOND_PRESSED  modifier_keys & COLUMN_DIAMOND
@@ -635,9 +637,9 @@ void HIDKeyboard_Do(void)
 			QueueKey(0x3A, 0x3A);
 		}
 	}
-	if (current_row & COLUMN_HOME)           // ?
+	if (current_row & COLUMN_HOME)           // Map HOME to Keyboard Left GUI (Win / Apple) modifier key.
 	{
-		// Nothing for now.
+		SET_LEFT_GUI;
 	}
 	if (current_row & COLUMN_X)              // Map X to Keyboard x / X
 	{
@@ -694,7 +696,10 @@ void HIDKeyboard_Do(void)
 	{
 		USB_SendInterruptData(0x01, output, 8);
 
-		memset(output+2, 0, sizeof(output)-2);
+		// Clear keys and wait for some time before sending key up event.
+		_memset(output+2, 0, sizeof(output)-2);
+		asm volatile("moveq #-1,%%d0; 0: dbf %%d0,0b" : : : "d0", "cc");
+
 		USB_SendInterruptData(0x01, output, 8);
 	}
 
