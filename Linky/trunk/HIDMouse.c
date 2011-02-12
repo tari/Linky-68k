@@ -133,9 +133,9 @@ void HIDMouse_Do(void)
 		buttonsPressed = HIDMouse_GetButtonValue();
 		buffer[0] = buttonsPressed;
 		buffer[1] = _keytest_optimized(RR_RIGHT)? HIDMouse_Sensitivity : 0x00;
-		buffer[1] = _keytest_optimized(RR_LEFT)? ~HIDMouse_Sensitivity : buffer[1];
+		buffer[1] = _keytest_optimized(RR_LEFT)? -HIDMouse_Sensitivity : buffer[1];
 		buffer[2] = _keytest_optimized(RR_DOWN)? HIDMouse_Sensitivity : 0x00;
-		buffer[2] = _keytest_optimized(RR_UP)? ~HIDMouse_Sensitivity : buffer[2];
+		buffer[2] = _keytest_optimized(RR_UP)? -HIDMouse_Sensitivity : buffer[2];
 	
 		USB_SendInterruptData(0x01, buffer, 3);
 	}
