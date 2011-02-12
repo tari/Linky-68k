@@ -145,15 +145,25 @@ void _main(void)
 				MenuOff(e);
 
 				if (result == 15)
+				{
 					DoHostMode();
+				}
 				else if (result == 16)
+				{
 					DoSilentLink();
+				}
 				else if (result == 17)
+				{
 					DoHIDMouse();
+				}
 				else if (result == 18)
+				{
 					DoHIDKeyboard();
+				}
 				else if (result == 19)
+				{
 					DoMassStorage();
+				}
 				else if (result == 3)
 				{
 					//Draw about dialog
@@ -226,6 +236,10 @@ void DoHostMode(void)
 	//Shut down the driver
 	Driver_Kill();
 
+	// Reinitialize for peripheral mode.
+	USB_PeripheralKill();
+	*USB_INT_MASK_ADDR = 0xFF;
+
 	//Flush the keyboard buffer
 	GKeyFlush();
 }
@@ -252,6 +266,10 @@ void DoSilentLink(void)
 
 	//Shut down the driver
 	Driver_Kill();
+
+	// Reinitialize for peripheral mode.
+	USB_PeripheralKill();
+	*USB_INT_MASK_ADDR = 0xFF;
 
 	//Flush the keyboard buffer
 	GKeyFlush();
@@ -309,6 +327,10 @@ void DoHIDMouse(void)
 	//Shut down the driver
 	Driver_Kill();
 
+	// Reinitialize for peripheral mode.
+	USB_PeripheralKill();
+	*USB_INT_MASK_ADDR = 0xFF;
+
 	//Flush the keyboard buffer
 	GKeyFlush();
 }
@@ -346,6 +368,10 @@ void DoHIDKeyboard()
 	//Shut down the driver
 	Driver_Kill();
 
+	// Reinitialize for peripheral mode.
+	USB_PeripheralKill();
+	*USB_INT_MASK_ADDR = 0xFF;
+
 	//Flush the keyboard buffer
 	GKeyFlush();
 }
@@ -382,7 +408,11 @@ void DoMassStorage()
 		
 		//Shut down the driver
 		Driver_Kill();
-		
+
+		// Reinitialize for peripheral mode.
+		USB_PeripheralKill();
+		*USB_INT_MASK_ADDR = 0xFF;
+
 		//Flush the keyboard buffer
 		GKeyFlush();
 	}

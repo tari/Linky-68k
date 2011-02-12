@@ -756,4 +756,7 @@ void USB_PeripheralKill(void)
 	}
 
 	SetIntVec(AUTO_INT_5, AutoInt5Backup);
+
+	//Re-enable USB interrupts
+	*USB_INT_ENABLE_ADDR = (unsigned char)0x01;
 }
