@@ -1,6 +1,7 @@
 #include "HIDKeyboard.h"
 
 //Descriptors
+//QWERTY keyboard
 const unsigned char HIDKeyboard_DeviceDescriptor[] = {0x12, 0x01, 0x10, 0x01, 0x03, 0x01, 0x01, 0x08, 0x3C, 0x41, 0x10, 0x31, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01};
 const unsigned char HIDKeyboard_ReportDescriptor[] = {0x05, 0x01, 0x09, 0x06, 0xA1, 0x01, 0x05, 0x07, 0x19, 0xE0, 0x29, 0xE7, 0x15, 0x00, 0x25, 0x01, 0x75, 0x01,
 														0x95, 0x08, 0x81, 0x02, 0x95, 0x01, 0x75, 0x08, 0x81, 0x01, 0x95, 0x05, 0x75, 0x01, 0x05, 0x08, 0x19, 0x01, 0x29, 0x05, 0x91, 0x02,
@@ -175,11 +176,13 @@ void HIDKeyboard_Kill(void)
 #define CLR_LEFT_ALT    {output[0] &= ~4;}
 #define CLR_LEFT_GUI    {output[0] &= ~8;}
 
-#define IS_ALPHA_PRESSED    modifier_keys & COLUMN_ALPHA
-#define IS_DIAMOND_PRESSED  modifier_keys & COLUMN_DIAMOND
-#define IS_SHIFT_PRESSED    modifier_keys & COLUMN_SHIFT
-#define IS_2nd_PRESSED      modifier_keys & COLUMN_2nd
+#define IS_ALPHA_PRESSED    modifier_keys         & COLUMN_ALPHA
+#define IS_DIAMOND_PRESSED  modifier_keys         & COLUMN_DIAMOND
+#define IS_SHIFT_PRESSED    modifier_keys         & COLUMN_SHIFT
+#define IS_2nd_PRESSED      modifier_keys         & COLUMN_2nd
+#define IS_HOME_PRESSED     new_keyboard_state[5] & COLUMN_HOME
 
+//QWERTY keyboard.
 void HIDKeyboard_Do(void)
 {
 	unsigned char keysPressed = 0;
@@ -219,11 +222,11 @@ void HIDKeyboard_Do(void)
 
 
 	// 1) Handle first row: ALPHA, DIAMOND, SHIFT, 2nd, RIGHT, DOWN, LEFT, UP
+	//         + sixth row: HOME
 	//    Generate several special keys.
-	current_row = new_keyboard_state[0];
-	modifier_keys = current_row;
+	modifier_keys = new_keyboard_state[0];
 
-	if (IS_DIAMOND_PRESSED)                   // Map DIAMOND to LEFT CTRL
+	if (IS_DIAMOND_PRESSED)                  // Map DIAMOND to LEFT CTRL
 	{
 		SET_LEFT_CTRL
 		keysPressed = 1;
@@ -242,6 +245,10 @@ void HIDKeyboard_Do(void)
 	if (IS_ALPHA_PRESSED)
 	{
 		// This triggers alpha mode, in QueueKey.
+	}
+	if (IS_HOME_PRESSED)                     // Map HOME to LEFT GUI (Win / Apple)
+	{
+		SET_LEFT_GUI
 	}
 
 	if (modifier_keys & COLUMN_RIGHT)        // Map RIGHT to Keyboard RightArrow, unless...
@@ -326,13 +333,15 @@ void HIDKeyboard_Do(void)
 			QueueKey(0x3E, 0x3E);
 		}
 	}
-	if (current_row & COLUMN_CLEAR)          // ?
+	if (current_row & COLUMN_CLEAR)          // Map CLEAR to Keyboard Delete Forward. Most useful for Ctrl + Alt + Del :-)
 	{
-		// Nothing for now.
+		QueueKey(0x4C, 0x4C);
 	}
-	if (current_row & COLUMN_CARET)          // ?
+	if (current_row & COLUMN_CARET)          // Map ^ to ^
 	{
-		// Nothing for now.
+		// The ^ character needs the shift modifier.
+		SET_LEFT_SHIFT
+		QueueKey(0x23, 0x23);
 	}
 	if (current_row & COLUMN_SLASH)          // Map / to Keypad / | Keyboard e / E, unless...
 	{
@@ -342,14 +351,39 @@ void HIDKeyboard_Do(void)
 			CLR_LEFT_ALT
 			QueueKey(0x30, 0x30);
 		}
+		else if (IS_DIAMOND_PRESSED)
+		{
+			// Generate ! in reaction to DIAMOND + /
+			CLR_LEFT_CTRL
+			// The ! character needs the shift modifier. Set it if alpha or shift are not pressed.
+			if (!((IS_ALPHA_PRESSED) || (IS_SHIFT_PRESSED)))
+			{
+				SET_LEFT_SHIFT
+			}
+			QueueKey(0x1E, 0x1E);
+		}
 		else
 		{
 			QueueKey(0x54, 0x08);
 		}
 	}
-	if (current_row & COLUMN_TIMES)          // Map * to Keypad * | Keyboard j / J
+	if (current_row & COLUMN_TIMES)          // Map * to Keypad * | Keyboard j / J, unless...
 	{
-		QueueKey(0x55, 0x0D);
+		if (IS_DIAMOND_PRESSED)
+		{
+			// Generate & in reaction to DIAMOND + *
+			CLR_LEFT_CTRL
+			// The & character needs the shift modifier. Set it if alpha or shift are not pressed.
+			if (!((IS_ALPHA_PRESSED) || (IS_SHIFT_PRESSED)))
+			{
+				SET_LEFT_SHIFT
+			}
+			QueueKey(0x24, 0x24);
+		}
+		else
+		{
+			QueueKey(0x55, 0x0D);
+		}
 	}
 	if (current_row & COLUMN_MINUS)          // Map - to Keypad - | Keyboard o / O
 	{
@@ -460,9 +494,9 @@ void HIDKeyboard_Do(void)
 			QueueKey(0x3C, 0x3C);
 		}
 	}
-	if (current_row & COLUMN_CATALOG)        // ?
+	if (current_row & COLUMN_CATALOG)        // Map CATALOG to Keypad Num Lock and Clear
 	{
-		// Nothing for now.
+		QueueKey(0x53, 0x53);
 	}
 	if (current_row & COLUMN_Z)              // Map Z to Keyboard z / Z
 	{
@@ -542,9 +576,15 @@ void HIDKeyboard_Do(void)
 			QueueKey(0x3B, 0x3B);
 		}
 	}
-	if (current_row & COLUMN_MODE)           // ?
+	if (current_row & COLUMN_MODE)           // Map MODE + DIAMOND to _
 	{
-		// Nothing for now. May map underscore.
+		if (IS_DIAMOND_PRESSED)
+		{
+			// The _ character needs the shift modifier.
+			CLR_LEFT_CTRL
+			SET_LEFT_SHIFT
+			QueueKey(0x2D, 0x2D);
+		}
 	}
 	if (current_row & COLUMN_Y)              // Map Y to Keyboard y / Y
 	{
@@ -637,10 +677,10 @@ void HIDKeyboard_Do(void)
 			QueueKey(0x3A, 0x3A);
 		}
 	}
-	if (current_row & COLUMN_HOME)           // Map HOME to Keyboard Left GUI (Win / Apple) modifier key.
+	/*if (current_row & COLUMN_HOME)           // Map HOME to Keyboard Left GUI (Win / Apple) modifier key - already done above
 	{
 		SET_LEFT_GUI;
-	}
+	}*/
 	if (current_row & COLUMN_X)              // Map X to Keyboard x / X
 	{
 		QueueKey(0x1B, 0x1B);
@@ -652,6 +692,17 @@ void HIDKeyboard_Do(void)
 			// Generate ' in reaction to 2nd + =
 			CLR_LEFT_ALT
 			QueueKey(0x34, 0x34);
+		}
+		else if (IS_DIAMOND_PRESSED)
+		{
+			// Generate # in reaction to DIAMOND + =. Nonstandard keybinding.
+			CLR_LEFT_CTRL
+			// The ~ character needs the shift modifier. Set it if alpha or shift are not pressed.
+			if (!((IS_ALPHA_PRESSED) || (IS_SHIFT_PRESSED)))
+			{
+				SET_LEFT_SHIFT
+			}
+			QueueKey(0x20, 0x20);
 		}
 		else
 		{
@@ -667,13 +718,41 @@ void HIDKeyboard_Do(void)
 		}
 		QueueKey(0x31, 0x09);
 	}
-	if (current_row & COLUMN_EE)             // May EE to Keyboard k / K
+	if (current_row & COLUMN_EE)             // May EE to Keyboard k / K, unless...
 	{
-		QueueKey(0x0E, 0x0E);
+		if (IS_DIAMOND_PRESSED)
+		{
+			// Generate ~ in reaction to DIAMOND + EE. Nonstandard keybinding.
+			CLR_LEFT_CTRL
+			// The ~ character needs the shift modifier. Set it if alpha or shift are not pressed.
+			if (!((IS_ALPHA_PRESSED) || (IS_SHIFT_PRESSED)))
+			{
+				SET_LEFT_SHIFT
+			}
+			QueueKey(0x35, 0x35);
+		}
+		else
+		{
+			QueueKey(0x0E, 0x0E);
+		}
 	}
-	if (current_row & COLUMN_STO)            // Map Sto to Keyboard Tab | Keyboard p / P
+	if (current_row & COLUMN_STO)            // Map Sto to Keyboard Tab | Keyboard p / P, unless...
 	{
-		QueueKey(0x2B, 0x13);
+		if (IS_DIAMOND_PRESSED)
+		{
+			// Generate @ in reaction to DIAMOND + STO
+			CLR_LEFT_CTRL
+			// The @ character needs the shift modifier. Set it if alpha or shift are not pressed.
+			if (!((IS_ALPHA_PRESSED) || (IS_SHIFT_PRESSED)))
+			{
+				SET_LEFT_SHIFT
+			}
+			QueueKey(0x1F, 0x1F);
+		}
+		else
+		{
+			QueueKey(0x2B, 0x13);
+		}
 	}
 	if (current_row & COLUMN_APPS)           // ?
 	{
