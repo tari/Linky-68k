@@ -50,7 +50,7 @@ Use Return Value=0
 Enable Error Return=0
 Save Screen=1
 [File Editing]
-Open File=C:\Documents and Settings\Brandon\Desktop\calcstuff\Linky\trunk\main.c
+Open File=C:\Documents and Settings\Brandon\Desktop\calcstuff\Linky\trunk\SerialAdapter.c
 [Included Files]
 C File 1=main.c
 C File 2=SilentLink.c
@@ -64,3 +64,5 @@ Header File 2=USB\usb.h
 Header File 3=HIDMouse.h
 Header File 4=HIDKeyboard.h
 Header File 5=MassStorage.h
+C File 8=SerialAdapter.c
+Header File 6=SerialAdapter.h
