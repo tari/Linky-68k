@@ -139,7 +139,7 @@ void USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int 
 
 	//Set endpoint
 	*USB_SELECTED_ENDPOINT_ADDR = (endpoint & 0x7F);
-	
+
 	//HACK: We should do this somewhere else, this assumes bulk endpoint with max packet size 0x40
 	*USB_OUTGOING_PIPE_SETUP_ADDR = (endpoint & 0x7F) | 0x20;
 	*USB_OUTGOING_MAX_PACKET_SIZE_ADDR = 0x08;
@@ -239,9 +239,9 @@ void USB_StartControlOutput(const unsigned char* address, int bytesRemaining)
 	*USB_OUTGOING_CMD_ADDR = (unsigned char)0x40;
 }
 
+//IS THIS EVEN BEING USED?!
 void USB_SendControlData(unsigned char* data, unsigned int length)
 {
-	//Do nothing
 	unsigned int sent = 0;
 	unsigned int i;
 
@@ -261,6 +261,55 @@ void USB_SendControlData(unsigned char* data, unsigned int length)
 			//If there's still data to send, send the continuation command
 			*USB_SELECTED_ENDPOINT_ADDR = (unsigned char)0x00;
 			*USB_OUTGOING_CMD_ADDR = (unsigned char)0x02;
+			
+			//Why are we not waiting on port 0x82 here?
+		}
+	}
+}
+
+unsigned char USB_WaitOutgoingCmdSuccess()
+{
+	const unsigned int timeout = 0xFFFF;
+	unsigned int i;
+
+	for (i = 0; i < timeout; i++)
+	{
+		if (*USB_OUTGOING_DATA_SUCCESS_ADDR)
+			break;
+	}
+	
+	return i >= timeout ? -1 : 0;
+}
+
+void USB_ReceiveControlData(unsigned char* data, unsigned int length)
+{
+	unsigned int received = 0;
+	unsigned int i;
+
+	//Start the data stage
+	*USB_SELECTED_ENDPOINT_ADDR = (unsigned char)0x00;
+	*USB_OUTGOING_CMD_ADDR = (unsigned char)0x40;
+	USB_WaitOutgoingCmdSuccess();
+	
+	while (received < length)
+	{
+		unsigned int left = length - received;
+		unsigned count = (left > bMaxPacketSize0)? bMaxPacketSize0 : left;
+		
+		//Receive the data to our buffer
+		for (i = 0; i < count; i++)
+			data[i+received] = *USB_ENDPOINT0_DATA_ADDR;
+		
+		received += count;
+		
+		if (received < length)
+		{
+			//If there's still data to receive, send the continuation command
+			*USB_SELECTED_ENDPOINT_ADDR = (unsigned char)0x00;
+			*USB_OUTGOING_CMD_ADDR = (unsigned char)0x02;
+
+			//Not sure if this is necessary or not...(or if it even works!)
+			USB_WaitOutgoingCmdSuccess();
 		}
 	}
 }
@@ -277,20 +326,6 @@ void USB_SetupOutgoingPipe(unsigned char endpoint, USB_EndpointType type, unsign
 	*USB_DATA_OUT_EN_ADDR1 = (unsigned char)0xFF;
 	*USB_UNKNOWN_92_ADDR = (unsigned char)0x00;
 	*USB_INIT_RELATED1_ADDR = (unsigned char)0xA1;
-}
-
-unsigned char USB_WaitOutgoingCmdSuccess()
-{
-	const unsigned int timeout = 0xFFFF;
-	unsigned int i;
-
-	for (i = 0; i < timeout; i++)
-	{
-		if (*USB_OUTGOING_DATA_SUCCESS_ADDR)
-			break;
-	}
-	
-	return i >= timeout ? -1 : 0;
 }
 
 unsigned char USB_SendControlCmd(unsigned char cmd)

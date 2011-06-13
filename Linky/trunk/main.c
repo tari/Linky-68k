@@ -82,9 +82,22 @@ unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 	return sectorBuffer;
 }
 
-unsigned char* SerialAdapter_HandleDataReceived(unsigned int size)
+void SerialAdapter_HandleReceivingData(unsigned int size)
 {
-	return NULL;
+	//Receive the data
+	unsigned char b[size];
+	unsigned int count = SerialAdapter_ReceiveData(b, size);
+
+	//For each byte/character...
+	unsigned int i = 0;
+	for (i = 0; i < count; i++)
+	{
+		//Echo it to our LCD
+		printf("%c", b[i]);
+		
+		//Echo it back to the device that sent it to us
+		SerialAdapter_SendData(b, 1);
+	}
 }
 
 INT_HANDLER main_saved_int_1;
@@ -298,11 +311,10 @@ void DoSerialAdapter(void)
 	//Initialize the driver
 	Driver_Initialize();
 	
-	SerialAdapter_Initialize(SerialAdapter_HandleDataReceived);
+	SerialAdapter_Initialize(SerialAdapter_HandleReceivingData);
 
 	SaveKeyInterrupts();
-	while (!_keytest(RR_CLEAR))
-		SerialAdapter_Do();
+	while (!_keytest(RR_CLEAR));
 	RestoreKeyInterrupts();
 
 	SerialAdapter_Kill();

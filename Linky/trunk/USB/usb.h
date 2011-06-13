@@ -117,6 +117,7 @@ void USB_SetFunctionAddress(int address);
 void USB_FinishControlRequest(void);
 void USB_StartControlOutput(const unsigned char* address, int bytesRemaining);
 void USB_SendControlData(unsigned char* data, unsigned int length);
+void USB_ReceiveControlData(unsigned char* data, unsigned int length);
 void USB_FinishControlOutput(void);
 int USB_SendInterruptData(unsigned char endpoint, unsigned char* data, unsigned int count);
 int USB_ReceiveInterruptData(unsigned char endpoint, unsigned char* data, unsigned int count);
