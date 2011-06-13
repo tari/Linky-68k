@@ -4,12 +4,14 @@
 #include "HIDKeyboard.h"
 #include "SilentLink.h"
 #include "MassStorage.h"
+#include "SerialAdapter.h"
 
 void DoHostMode(void);
 void DoSilentLink(void);
 void DoHIDMouse(void);
 void DoHIDKeyboard(void);
 void DoMassStorage(void);
+void DoSerialAdapter(void);
 
 // Definitions from TIFS
 typedef HANDLE AppID;
@@ -80,6 +82,11 @@ unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 	return sectorBuffer;
 }
 
+unsigned char* SerialAdapter_HandleDataReceived(unsigned int size)
+{
+	return NULL;
+}
+
 INT_HANDLER main_saved_int_1;
 INT_HANDLER main_saved_int_5;
 
@@ -122,6 +129,7 @@ void _main(void)
 	DynMenuAdd(m, 14, "HID Mouse", 17, DMF_TEXT | DMF_CHILD);
 	DynMenuAdd(m, 14, "HID Keyboard", 18, DMF_TEXT | DMF_CHILD);
 	DynMenuAdd(m, 14, "Mass Storage", 19, DMF_TEXT | DMF_CHILD);
+	DynMenuAdd(m, 14, "PL2303 Serial Adapter", 20, DMF_TEXT | DMF_CHILD);
 	DynMenuAdd(m, 0, "About", 3, DMF_TEXT | DMF_TOP);
 	DynMenuAdd(m, 0, "Quit", 4, DMF_TEXT | DMF_TOP);
 	HANDLE e = MenuBegin(NULL, 0, 0, MBF_HMENU | MBF_MAX_MENU_WIDTH, 160, m);
@@ -163,6 +171,10 @@ void _main(void)
 				else if (result == 19)
 				{
 					DoMassStorage();
+				}
+				else if (result == 20)
+				{
+					DoSerialAdapter();
 				}
 				else if (result == 3)
 				{
@@ -263,6 +275,37 @@ void DoSilentLink(void)
 	RestoreKeyInterrupts();
 		
 	SilentLink_Kill();
+
+	//Shut down the driver
+	Driver_Kill();
+
+	// Reinitialize for peripheral mode.
+	USB_PeripheralKill();
+	*USB_INT_MASK_ADDR = 0xFF;
+
+	//Flush the keyboard buffer
+	GKeyFlush();
+}
+
+void DoSerialAdapter(void)
+{
+	//Display a message to the user
+	clrscr();
+	printf("Connect a USB cable to\n");
+	printf("your calculator now.\n\n");
+	printf("Press [CLEAR] to quit.\n\n");
+
+	//Initialize the driver
+	Driver_Initialize();
+	
+	SerialAdapter_Initialize(SerialAdapter_HandleDataReceived);
+
+	SaveKeyInterrupts();
+	while (!_keytest(RR_CLEAR))
+		SerialAdapter_Do();
+	RestoreKeyInterrupts();
+
+	SerialAdapter_Kill();
 
 	//Shut down the driver
 	Driver_Kill();
