@@ -164,14 +164,14 @@ void USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int 
 
 		dataBuffer += bytesToSend;
 		count -= bytesToSend;
-		
+
 		//Send continuation commands
 		volatile unsigned char val;
 		*USB_OUTGOING_CMD_ADDR = (unsigned char)0x01;
 		do
 		{
 			val = *USB_OUTGOING_DATA_SUCCESS_ADDR;
-		} while ((val & (endpoint << 1)) == 0);
+		} while ((val & (1 << endpoint)) == 0);
 		*USB_OUTGOING_CMD_ADDR = (unsigned char)0x08;
 	}
 	
@@ -186,7 +186,7 @@ int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned in
 
 	//Set endpoint
 	*USB_SELECTED_ENDPOINT_ADDR = (endpoint & 0x7F);
-	
+
 	//Have we NAK'd/Stalled?
 	int NAKStall = *USB_INCOMING_CMD_ADDR & 0x7F;
 	if (NAKStall & 0x40)
@@ -197,7 +197,7 @@ int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned in
 	else
 	{
 		//Do we have any buffered bytes?
-		unsigned char bytesInQueue = bytesBuffered[endpoint & 0x0F];
+		int bytesInQueue = bytesBuffered[endpoint & 0x0F];
 		if (bytesInQueue <= 0x00)
 		{
 			//No, so read count
@@ -213,10 +213,11 @@ int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned in
 			ret++;
 		}
 
-		bytesInQueue -= ret;
+		if (bytesInQueue > 0)
+			bytesInQueue -= ret;
 		bytesBuffered[endpoint & 0x0F] = bytesInQueue;
 
-		if (bytesInQueue <= 0x00)
+		if (bytesInQueue <= 0)
 		{
 			*USB_INCOMING_CMD_ADDR &= (unsigned char)0xFE;
 			*USB_INIT_RELATED1_ADDR = (unsigned char)0xA1;
