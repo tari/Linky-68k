@@ -8,8 +8,8 @@
 
 void DoHostMode(void);
 void DoSilentLink(void);
-void DoHIDMouse(void);
-void DoHIDKeyboard(void);
+short DoHIDMouse(void);
+short DoHIDKeyboard(void);
 void DoMassStorage(void);
 void DoSerialAdapter(void);
 
@@ -175,11 +175,17 @@ void _main(void)
 				}
 				else if (result == 17)
 				{
-					DoHIDMouse();
+doHIDMouse:
+					if (DoHIDMouse() != 0) {
+						goto doHIDKeyboard;
+					}
 				}
 				else if (result == 18)
 				{
-					DoHIDKeyboard();
+doHIDKeyboard:
+					if (DoHIDKeyboard() != 0) {
+						goto doHIDMouse;
+					}
 				}
 				else if (result == 19)
 				{
@@ -330,13 +336,16 @@ void DoSerialAdapter(void)
 	GKeyFlush();
 }
 
-void DoHIDMouse(void)
+short DoHIDMouse(void)
 {
+	short result = 0;
+
 	//Display a message to the user
 	clrscr();
 	printf("Connect a USB cable to\n");
 	printf("your calculator now.\n\n");
-	printf("Press [CLEAR] to quit.\n\n");
+	printf("Press [CLEAR] to quit.\n");
+	printf("Press [APPS] to switch\nto keyboard mode.\n\n");
 
 	//Initialize the driver
 	Driver_Initialize();
@@ -370,9 +379,17 @@ void DoHIDMouse(void)
 				printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
 			}
 		}
+		else if (_keytest(RR_APPS))
+		{
+			// Switch to keyboard mode.
+			result = 1;
+			break;
+		}
 		else
+		{
 			timer = 0;
-		
+		}
+
 		HIDMouse_Do();
 	}
 	RestoreKeyInterrupts();
@@ -388,15 +405,20 @@ void DoHIDMouse(void)
 
 	//Flush the keyboard buffer
 	GKeyFlush();
+
+	return result;
 }
 
-void DoHIDKeyboard()
+short DoHIDKeyboard()
 {
+	short result = 0;
+
 	//Display a message to the user
 	clrscr();
 	printf("Connect a USB cable to\n");
 	printf("your calculator now.\n\n");
-	printf("Press [ON] to quit.\n\n");
+	printf("Press [ON] to quit.\n");
+	printf("Press [APPS] to switch\nto keyboard mode.\n\n");
 
 	//Initialize the driver
 	Driver_Initialize();
@@ -413,8 +435,12 @@ void DoHIDKeyboard()
 			*((volatile unsigned char *)0x60001A) = 0xFF;
 			break;
 		}
-		
-		HIDKeyboard_Do();
+
+		if (HIDKeyboard_Do() != 0) {
+			// Switch to mouse mode
+			result = 1;
+			break;
+		}
 	}
 	RestoreKeyInterrupts();
 
@@ -429,6 +455,8 @@ void DoHIDKeyboard()
 
 	//Flush the keyboard buffer
 	GKeyFlush();
+
+	return result;
 }
 
 void DoMassStorage()
