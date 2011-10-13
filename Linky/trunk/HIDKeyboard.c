@@ -183,7 +183,7 @@ void HIDKeyboard_Kill(void)
 #define IS_HOME_PRESSED     new_keyboard_state[5] & COLUMN_HOME
 
 //QWERTY keyboard.
-void HIDKeyboard_Do(void)
+short HIDKeyboard_Do(void)
 {
 	unsigned char keysPressed = 0;
 	unsigned char new_keyboard_state[NR_ROWS];
@@ -193,6 +193,7 @@ void HIDKeyboard_Do(void)
 	unsigned short i = 0, j = 1;
 
 	unsigned short nr_keys = 0+2;
+	short result = 0;
 
 	//! Queue up to MAX_OUTPUT_KEYS, drop excess keys.
 	inline __attribute__((regparm(2))) void QueueKey(unsigned char normalkey, unsigned char alphakey)
@@ -754,9 +755,9 @@ void HIDKeyboard_Do(void)
 			QueueKey(0x2B, 0x13);
 		}
 	}
-	if (current_row & COLUMN_APPS)           // ?
+	if (current_row & COLUMN_APPS)           // For now, switch to mouse mode
 	{
-		// Nothing for now.
+		result = 1;
 	}
 
 
@@ -786,4 +787,6 @@ void HIDKeyboard_Do(void)
 
 	// Wait for a significant amount of time, so as to reduce duplicate keypresses.
 	asm volatile("moveq #-1,%%d0; 0: dbf %%d0,0b; 1: dbf %%d0,1b" : : : "d0", "cc");
+
+	return result;
 }
