@@ -3,6 +3,7 @@
 
 void USB_HandleControlPacket(unsigned char* packet)
 {
+	printf("Handling control request\n");
 	unsigned char bmRequestType = packet[0] & 0xFF;
 	unsigned char bRequest = packet[1];
 	unsigned int wValue = (packet[3] << 8) | (packet[2] & 0xFF);
@@ -199,6 +200,7 @@ void HandleUSBInterrupt(void)
 			//Handle USB B-cable connect
 			USBState = 0;
 			newAddressReceived = 0;
+			printf("Periph connect detected\n");
 
 			if (peripheralInterface->h_connected != NULL)
 				peripheralInterface->h_connected();
@@ -209,6 +211,7 @@ void HandleUSBInterrupt(void)
 		else if ((status2 & 0x80) != 0)
 		{
 			//Handle USB B-cable disconnect
+			printf("Periph kill detected\n");
 			USB_PeripheralKill();
 			OSTimerRestart(2);
 		}
@@ -226,10 +229,23 @@ void HandleUSBInterrupt(void)
 			printf("A cable disconn handle done\n");
 			OSTimerRestart(2);
 		}
+		else if ((status2 & 0x02) != 0)
+		{
+			printf("Bit 1 of 0x56 set, host initting\n");
+			USB_HostInitialize();
+			OSTimerRestart(2);
+		}
+		else if ((status2 & 0x08) != 0)
+		{
+			printf("Bit 3 of port 0x56 set\n");
+			*USB_INT_MASK_ADDR = *USB_INT_MASK_ADDR & 0xF7;
+			OSTimerRestart(2);
+		}
 		else
 		{
 			//Unknown 0x56 event
 			//Let the AMS deal with it
+			printf("Unknown 0x56 event fired: %02X\n", status2);
 			ExecuteHandler(OldInt3);
 		}
 	}
@@ -243,6 +259,7 @@ void HandleUSBInterrupt(void)
 
 		if (incomingDataReady & 0x0F)
 		{
+			printf("Incoming data ready\n");
 			//Clear the buffered byte count for each endpoint we have data for
 			int i;
 			unsigned char readyMap = incomingDataReady;

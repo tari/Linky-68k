@@ -229,6 +229,8 @@ void DoHostMode(void)
 	//Initialize the driver
 	Driver_Initialize();
 	
+	USB_HostInitialize();
+	
 	//Main key loop
 	SaveKeyInterrupts();
 	while (1)
@@ -242,7 +244,7 @@ void DoHostMode(void)
 			
 			unsigned char buffer[8];
 			USB_GetDescriptor(0x01, buffer, 8);
-	
+
 			unsigned int i;
 			for (i = 0; i < 8; i++)
 				printf("%02X", buffer[i]);
@@ -264,12 +266,10 @@ void DoHostMode(void)
 	}
 	RestoreKeyInterrupts();
 
+	USB_HostKill();
+
 	//Shut down the driver
 	Driver_Kill();
-
-	// Reinitialize for peripheral mode.
-	USB_PeripheralKill();
-	*USB_INT_MASK_ADDR = 0xFF;
 
 	//Flush the keyboard buffer
 	GKeyFlush();

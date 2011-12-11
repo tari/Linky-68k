@@ -508,7 +508,7 @@ int USB_HostInitialize(void)
 				i = 0;
 				do
 				{
-					val = *USB_INIT_4C_ADDR;
+					val = *USB_INIT_4D_ADDR;
 					
 					if (++i > 0xFFFFFF)
 						break;
@@ -648,6 +648,7 @@ void USB_PeripheralInitialize(void)
 	*USB_BASE_POWER_ADDR = (unsigned char)0x00;
 	
 	//Wait for 100ms
+	printf("Waiting for 100ms\n");
 	timerValue = FiftyMsecTick;
 	while (FiftyMsecTick < timerValue+2);
 
@@ -658,6 +659,7 @@ void USB_PeripheralInitialize(void)
 	*USB_INIT_4C_ADDR = (unsigned char)0x08;
 	
 	//Wait on 4C
+	printf("Waiting on 4C\n");
 	i = 0;
 	do
 	{
@@ -666,7 +668,8 @@ void USB_PeripheralInitialize(void)
 		if (++i > 0xFFFFFF)
 			break;
 	}while (val != 0x1A && val != 0x5A);
-	
+	printf("Done waiting on 4C\n");
+
 	if (i < 0xFFFFFF)
 	{
 		*USB_DATA_OUT_EN_ADDR1 = (unsigned char)0xFF;
