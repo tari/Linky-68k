@@ -107,6 +107,7 @@ void Driver_Kill();
 void Driver_SetPeripheralInterface(USBPeripheral* interface);
 
 //USB functions
+void USB_HandleInterrupt(void);
 int USB_HostInitialize(void);
 void USB_HostKill(void);
 int USB_IsDataReady(unsigned char endpoint);
