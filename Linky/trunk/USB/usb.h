@@ -89,6 +89,12 @@ typedef struct
 
 const USBPeripheral DEFAULT_USB_PERIPHERAL = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
+typedef struct
+{
+	unsigned char IsRootDevice;
+	unsigned int bFunctionAddress;
+} USBDevice;
+
 //For internal driver use (should these go somewhere else?)
 extern USBPeripheral* peripheralInterface;         //Pointer to USB peripheral mode setup/interface information
 extern INT_HANDLER OldInt3;                        //Backup of old AUTO_INT_3 interrupt vector

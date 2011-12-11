@@ -1,5 +1,5 @@
 #include <tigcclib.h>
-#include "usb.h"
+#include "api.h"
 
 extern unsigned char HIDMouse_Sensitivity;
 
