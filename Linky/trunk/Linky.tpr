@@ -68,3 +68,5 @@ Header File 4=HIDKeyboard.h
 Header File 5=MassStorage.h
 Header File 6=SerialAdapter.h
 Header File 7=demos.h
+C File 10=api.c
+Header File 8=api.h

@@ -12,7 +12,6 @@ int wAddress;                               //used in setting the address from t
 int bytesBuffered[0x0F];                    //keeps track of buffered incoming data per pipe
 unsigned char incomingDataReadyMap;         //keeps track of incoming data per pipe
 
-
 int USB_IsDataReady(unsigned char endpoint)
 {
 	return (incomingDataReadyMap & (endpoint << 1)) ? 1 : 0;
@@ -821,4 +820,5 @@ void USB_PeripheralKill(void)
 
 	//Re-enable USB interrupts
 	*USB_INT_ENABLE_ADDR = (unsigned char)0x01;
+	*USB_INT_MASK_ADDR = 0xFF;
 }
