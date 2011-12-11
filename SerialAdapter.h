@@ -1,5 +1,5 @@
 #include <tigcclib.h>
-#include "usb.h"
+#include "api.h"
 
 typedef void (*Handle_ReceivingData)(unsigned int size);
 

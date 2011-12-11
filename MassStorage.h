@@ -1,5 +1,5 @@
 #include <tigcclib.h>
-#include "usb.h"
+#include "api.h"
 
 typedef unsigned char* (*Handle_ReadSectorRequest)(unsigned long long int LBA);
 typedef void (*Handle_WriteSectorRequest)(unsigned long long int LBA, const unsigned char* sectorData);
