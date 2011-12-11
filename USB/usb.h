@@ -101,11 +101,6 @@ extern int wAddress;													      //used in setting the address from the in
 extern int bytesBuffered[0x0F];							      //keeps track of buffered incoming data per pipe
 extern unsigned char incomingDataReadyMap;					//keeps track of incoming data per pipe
 
-//Basic driver functions
-void Driver_Initialize();
-void Driver_Kill();
-void Driver_SetPeripheralInterface(USBPeripheral* interface);
-
 //USB functions
 void USB_HandleInterrupt(void);
 int USB_HostInitialize(void);
