@@ -91,8 +91,9 @@ const USBPeripheral DEFAULT_USB_PERIPHERAL = {NULL, NULL, NULL, NULL, NULL, NULL
 
 typedef struct
 {
-	unsigned char IsRootDevice;
 	unsigned int bFunctionAddress;
+	unsigned int bParentAddress;
+	unsigned int bHubPortNumber;
 } USBDevice;
 
 //For internal driver use (should these go somewhere else?)
