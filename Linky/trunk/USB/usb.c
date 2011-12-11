@@ -365,7 +365,7 @@ unsigned char USB_GetMaxPacketSize0(void)
 	return response[7];
 }
 
-unsigned char USB_SendControlRequest(unsigned char* request, unsigned char* responseBuffer, unsigned char bytesExpectedToReceive)
+unsigned char USB_SendControlRequest(unsigned int bMaxPacketSize0, unsigned char* request, unsigned char* responseBuffer, unsigned char bytesExpectedToReceive)
 {
 	unsigned char* responseAddress = responseBuffer;
 	unsigned int i;
@@ -394,7 +394,7 @@ unsigned char USB_SendControlRequest(unsigned char* request, unsigned char* resp
 			USB_SendControlCmd(0x20);
 			
 			//Receive it
-			count = bytesExpectedToReceive > 0x40 ? 0x40 : bytesExpectedToReceive; //HACK: assuming bMaxPacketSize0 is 0x40
+			count = bytesExpectedToReceive > bMaxPacketSize0 ? bMaxPacketSize0 : bytesExpectedToReceive; //HACK: assuming bMaxPacketSize0 is 0x40
 			for (i = 0; i < count; i++)
 				responseAddress[i] = *USB_ENDPOINT0_DATA_ADDR;
 			
@@ -409,11 +409,34 @@ unsigned char USB_SendControlRequest(unsigned char* request, unsigned char* resp
 	return 0;
 }
 
+unsigned char USB_GetDeviceDescriptor(unsigned char* responseBuffer, unsigned int bufferLength)
+{
+	const unsigned int BUFFER_SIZE = 8;
+	unsigned char buffer[BUFFER_SIZE];
+
+	USB_GetDescriptor(0x01, buffer, BUFFER_SIZE);
+	USB_GetDescriptor(0x01, responseBuffer, bufferLength >= buffer[0] ? buffer[0] : bufferLength);
+
+	return 0;
+}
+
+unsigned char USB_GetConfigurationDescriptor(unsigned char* responseBuffer, unsigned int bufferLength)
+{
+	const unsigned int BUFFER_SIZE = 8;
+	unsigned char buffer[BUFFER_SIZE];
+	
+	USB_GetDescriptor(0x02, buffer, BUFFER_SIZE);
+	unsigned int size = (buffer[2] & 0xFF) | (buffer[3] << 8);
+	USB_GetDescriptor(0x02, responseBuffer, bufferLength >= size ? size : bufferLength);
+	
+	return 0;
+}
+
 unsigned char USB_GetDescriptor(unsigned char type, unsigned char* responseBuffer, unsigned int bytesExpectedToReceive)
 {
 	unsigned char request[] = {0x80, 0x06, 0x00, type, 0x00, 0x00, (bytesExpectedToReceive & 0xFF), (bytesExpectedToReceive >> 8)};
 	
-	USB_SendControlRequest(request, responseBuffer, bytesExpectedToReceive);
+	USB_SendControlRequest(0x40, request, responseBuffer, bytesExpectedToReceive);
 	
 	return 0;
 }
@@ -423,7 +446,7 @@ unsigned char USB_SetHostAddress(unsigned char address)
 	//Buffer the request data
 	unsigned char request[] = {0x00, 0x05, address, 0x00, 0x00, 0x00, 0x00, 0x00};
 	
-	USB_SendControlRequest(request, NULL, 0);
+	USB_SendControlRequest(0x40, request, NULL, 0);
 	USB_SetFunctionAddress(address);
 	
 	return 0;

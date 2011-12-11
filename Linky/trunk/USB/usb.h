@@ -125,5 +125,7 @@ void USB_SendBulkData(unsigned char endpoint, unsigned char* data, unsigned int 
 int USB_ReceiveBulkData(unsigned char endpoint, unsigned char* data, unsigned int count);
 void USB_SetupOutgoingPipe(unsigned char endpoint, USB_EndpointType type, unsigned char maxPacketSize);
 unsigned char USB_GetDescriptor(unsigned char type, unsigned char* responseBuffer, unsigned int bytesExpectedToReceive);
+unsigned char USB_GetDeviceDescriptor(unsigned char* responseBuffer, unsigned int bufferLength);
+unsigned char USB_GetConfigurationDescriptor(unsigned char* responseBuffer, unsigned int bufferLength);
 
 #endif
