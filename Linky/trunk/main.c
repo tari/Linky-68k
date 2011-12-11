@@ -459,6 +459,7 @@ short DoHIDKeyboard()
 	return result;
 }
 
+
 void DoMassStorage()
 {
 	HANDLE d = DialogNewSimple(140, 40);
