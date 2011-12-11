@@ -1,5 +1,7 @@
 #include <tigcclib.h>
-#include "usb.h"
+#include "api.h"
+
+Driver_NewDeviceConnected cb_NewDeviceConnected;
 
 DEFINE_INT_HANDLER(MyInt3)
 {
@@ -10,6 +12,7 @@ void Driver_Initialize(void)
 {
 	//Set default values for everything
 	peripheralInterface = NULL;
+	cb_NewDeviceConnected = NULL;
 
   //Back up the old and install the new handler
   OldInt3 = GetIntVec(AUTO_INT_3);
@@ -34,4 +37,9 @@ void Driver_SetPeripheralInterface(USBPeripheral* interface)
 	{
 		bMaxPacketSize0 = peripheralInterface->deviceDescriptor[7];
 	}
+}
+
+void Driver_SetCallbacks(Driver_NewDeviceConnected newDeviceConnected)
+{
+	cb_NewDeviceConnected = newDeviceConnected;
 }

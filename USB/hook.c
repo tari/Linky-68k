@@ -1,6 +1,8 @@
 #include <tigcclib.h>
 #include "api.h"
 
+extern Driver_NewDeviceConnected cb_NewDeviceConnected;
+
 void USB_HandleControlPacket(unsigned char* packet)
 {
 	printf("Handling control request\n");
@@ -218,7 +220,14 @@ void USB_HandleInterrupt(void)
 		else if ((status2 & 0x10) != 0)
 		{
 			//Handle USB A-cable connect
-			printf("Host init returned: %02X\n", USB_HostInitialize());
+			*USB_INT_MASK_ADDR = *USB_INT_MASK_ADDR & (~0x10 & 0xFF);
+			*USB_INT_MASK_ADDR |= 0x10;
+
+			//Raise any event we might have for this
+			if (cb_NewDeviceConnected != NULL)
+				cb_NewDeviceConnected(NULL);
+
+			//Reset the timer
 			OSTimerRestart(2);
 		}
 		else if ((status2 & 0x20) != 0)
@@ -232,15 +241,15 @@ void USB_HandleInterrupt(void)
 		else if ((status2 & 0x02) != 0)
 		{
 			printf("Bit 1 of 0x56 set, host initting\n");
-			*USB_INT_MASK_ADDR = *USB_INT_MASK_ADDR & 0xFD;
-			*USB_INT_MASK_ADDR |= *USB_INT_MASK_ADDR & 0x02;
+			*USB_INT_MASK_ADDR = *USB_INT_MASK_ADDR & (~0x02 & 0xFF);
+			*USB_INT_MASK_ADDR |= 0x02;
 			OSTimerRestart(2);
 		}
 		else if ((status2 & 0x08) != 0)
 		{
 			printf("Bit 3 of port 0x56 set\n");
-			*USB_INT_MASK_ADDR = *USB_INT_MASK_ADDR & 0xF7;
-			*USB_INT_MASK_ADDR |= *USB_INT_MASK_ADDR & 0x08;
+			*USB_INT_MASK_ADDR = *USB_INT_MASK_ADDR & (~0x08 & 0xFF);
+			*USB_INT_MASK_ADDR |= 0x08;
 			OSTimerRestart(2);
 		}
 		else

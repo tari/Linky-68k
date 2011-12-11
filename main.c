@@ -21,6 +21,12 @@ void RestoreKeyInterrupts()
   SetIntVec(AUTO_INT_5, main_saved_int_5);
 }
 
+void NewDeviceConnected(USBDevice* device)
+{
+	printf("New device connected!\n");
+	USB_HostInitialize();
+}
+
 void DoHostMode(void)
 {
 	const int BUFFER_SIZE = 256;
@@ -34,7 +40,8 @@ void DoHostMode(void)
 
 	//Initialize the driver
 	Driver_Initialize();
-	
+	Driver_SetCallbacks(NewDeviceConnected);
+
 	//Main key loop
 	SaveKeyInterrupts();
 	while (1)
