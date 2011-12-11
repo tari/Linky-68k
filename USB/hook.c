@@ -232,13 +232,15 @@ void HandleUSBInterrupt(void)
 		else if ((status2 & 0x02) != 0)
 		{
 			printf("Bit 1 of 0x56 set, host initting\n");
-			USB_HostInitialize();
+			*USB_INT_MASK_ADDR = *USB_INT_MASK_ADDR & 0xFD;
+			*USB_INT_MASK_ADDR |= *USB_INT_MASK_ADDR & 0x02;
 			OSTimerRestart(2);
 		}
 		else if ((status2 & 0x08) != 0)
 		{
 			printf("Bit 3 of port 0x56 set\n");
 			*USB_INT_MASK_ADDR = *USB_INT_MASK_ADDR & 0xF7;
+			*USB_INT_MASK_ADDR |= *USB_INT_MASK_ADDR & 0x08;
 			OSTimerRestart(2);
 		}
 		else

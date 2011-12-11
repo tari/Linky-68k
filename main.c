@@ -220,6 +220,8 @@ doHIDKeyboard:
 
 void DoHostMode(void)
 {
+	const int BUFFER_SIZE = 256;
+
 	//Display a message to the user
 	clrscr();
 	printf("Connect a USB cable to\n");
@@ -242,8 +244,8 @@ void DoHostMode(void)
 		{
 			while (_keytest(RR_CATALOG));
 			
-			unsigned char buffer[8];
-			USB_GetDescriptor(0x01, buffer, 8);
+			unsigned char buffer[BUFFER_SIZE];
+			USB_GetDeviceDescriptor(buffer, BUFFER_SIZE);
 
 			unsigned int i;
 			for (i = 0; i < 8; i++)
@@ -255,8 +257,8 @@ void DoHostMode(void)
 		{
 			while (_keytest(RR_APPS));
 			
-			unsigned char buffer[8];
-			USB_GetDescriptor(0x02, buffer, 8);
+			unsigned char buffer[BUFFER_SIZE];
+			USB_GetConfigurationDescriptor(buffer, BUFFER_SIZE);
 			
 			unsigned int i;
 			for (i = 0; i < 8; i++)
