@@ -1,6 +1,3 @@
-// C Source File
-// Created 6/14/2011; 5:54:32 PM
-
 #include <tigcclib.h>
 #include "SerialAdapter.h"
 #include "MassStorage.h"
@@ -8,8 +5,24 @@
 #include "HIDKeyboard.h"
 #include "SilentLink.h"
 
-INT_HANDLER main_saved_int_1;
-INT_HANDLER main_saved_int_5;
+INT_HANDLER _main_saved_int_1;
+INT_HANDLER _main_saved_int_5;
+
+void SaveKeyInterrupts()
+{
+	//Save AUTO_INT_1 and AUTO_INT_5 interrupts because they interfere with key reading
+	_main_saved_int_1 = GetIntVec(AUTO_INT_1);
+	_main_saved_int_5 = GetIntVec(AUTO_INT_5);
+	SetIntVec(AUTO_INT_1, DUMMY_HANDLER);
+	SetIntVec(AUTO_INT_5, DUMMY_HANDLER);
+}
+
+void RestoreKeyInterrupts()
+{
+	//Restore AUTO_INT_1 and AUTO_INT_5 interrupts
+  SetIntVec(AUTO_INT_1, _main_saved_int_1);
+  SetIntVec(AUTO_INT_5, _main_saved_int_5);
+}
 
 // Definitions from TIFS
 typedef HANDLE AppID;
@@ -80,22 +93,6 @@ unsigned char* MassStorage_HandleReadSector(unsigned long long int LBA)
 	return sectorBuffer;
 }
 
-void SaveKeyInterrupts()
-{
-	//Save AUTO_INT_1 and AUTO_INT_5 interrupts because they interfere with key reading
-	main_saved_int_1 = GetIntVec(AUTO_INT_1);
-	main_saved_int_5 = GetIntVec(AUTO_INT_5);
-	SetIntVec(AUTO_INT_1, DUMMY_HANDLER);
-	SetIntVec(AUTO_INT_5, DUMMY_HANDLER);
-}
-
-void RestoreKeyInterrupts()
-{
-	//Restore AUTO_INT_1 and AUTO_INT_5 interrupts
-  SetIntVec(AUTO_INT_1, main_saved_int_1);
-  SetIntVec(AUTO_INT_5, main_saved_int_5);
-}
-
 void SerialAdapter_HandleReceivingData(unsigned int size)
 {
 	//Receive the data
@@ -126,21 +123,15 @@ void DoSerialAdapter(void)
 
 	//Initialize the driver
 	Driver_Initialize();
-	
 	SerialAdapter_Initialize(SerialAdapter_HandleReceivingData);
 
 	SaveKeyInterrupts();
 	while (!_keytest(RR_CLEAR));
 	RestoreKeyInterrupts();
 
-	SerialAdapter_Kill();
-
 	//Shut down the driver
+	SerialAdapter_Kill();
 	Driver_Kill();
-
-	// Reinitialize for peripheral mode.
-	USB_PeripheralKill();
-	*USB_INT_MASK_ADDR = 0xFF;
 
 	//Flush the keyboard buffer
 	GKeyFlush();
@@ -156,7 +147,6 @@ void DoSilentLink(void)
 
 	//Initialize the driver
 	Driver_Initialize();
-	
 	SilentLink_Initialize();
 
 	SaveKeyInterrupts();
@@ -164,34 +154,27 @@ void DoSilentLink(void)
 		SilentLink_Do();
 	RestoreKeyInterrupts();
 		
-	SilentLink_Kill();
-
 	//Shut down the driver
+	SilentLink_Kill();
 	Driver_Kill();
-
-	// Reinitialize for peripheral mode.
-	USB_PeripheralKill();
-	*USB_INT_MASK_ADDR = 0xFF;
 
 	//Flush the keyboard buffer
 	GKeyFlush();
 }
 
-void DoHIDMouse(void)
+short DoHIDMouse(void)
 {
+	short result = 0;
+
 	//Display a message to the user
 	clrscr();
 	printf("Connect a USB cable to\n");
 	printf("your calculator now.\n\n");
-	printf("Press [CLEAR] to quit.\n\n");
-	printf("Use arrow keys to move\n");
-	printf(" mouse cursor; [+]/[-]\n");
-	printf(" to adjust movement\n");
-	printf(" sensitivity.\n\n");
+	printf("Press [CLEAR] to quit.\n");
+	printf("Press [APPS] to switch\nto keyboard mode.\n\n");
 
 	//Initialize the driver
 	Driver_Initialize();
-	
 	HIDMouse_Initialize();
 	
 	//Main key loop
@@ -221,37 +204,45 @@ void DoHIDMouse(void)
 				printf("Changed sensitivity to %02u\n", HIDMouse_Sensitivity);
 			}
 		}
+		else if (_keytest(RR_APPS))
+		{
+			// Switch to keyboard mode.
+			result = 1;
+			break;
+		}
 		else
+		{
 			timer = 0;
-		
+		}
+
 		HIDMouse_Do();
 	}
 	RestoreKeyInterrupts();
 
-	HIDMouse_Kill();
 
 	//Shut down the driver
+	HIDMouse_Kill();
 	Driver_Kill();
-
-	// Reinitialize for peripheral mode.
-	USB_PeripheralKill();
-	*USB_INT_MASK_ADDR = 0xFF;
 
 	//Flush the keyboard buffer
 	GKeyFlush();
+
+	return result;
 }
 
-void DoHIDKeyboard()
+short DoHIDKeyboard()
 {
+	short result = 0;
+
 	//Display a message to the user
 	clrscr();
 	printf("Connect a USB cable to\n");
 	printf("your calculator now.\n\n");
-	printf("Press [ON] to quit.\n\n");
+	printf("Press [ON] to quit.\n");
+	printf("Press [APPS] to switch\nto mouse mode.\n\n");
 
 	//Initialize the driver
 	Driver_Initialize();
-
 	HIDKeyboard_Initialize();
 
 	//Main key loop
@@ -264,22 +255,24 @@ void DoHIDKeyboard()
 			*((volatile unsigned char *)0x60001A) = 0xFF;
 			break;
 		}
-		
-		HIDKeyboard_Do();
+
+		if (HIDKeyboard_Do() != 0) {
+			// Switch to mouse mode
+			result = 1;
+			break;
+		}
 	}
 	RestoreKeyInterrupts();
 
-	HIDKeyboard_Kill();
 
 	//Shut down the driver
+	HIDKeyboard_Kill();
 	Driver_Kill();
-
-	// Reinitialize for peripheral mode.
-	USB_PeripheralKill();
-	*USB_INT_MASK_ADDR = 0xFF;
 
 	//Flush the keyboard buffer
 	GKeyFlush();
+
+	return result;
 }
 
 void DoMassStorage()
@@ -302,22 +295,16 @@ void DoMassStorage()
 		
 		//Initialize the driver
 		Driver_Initialize();
-
 		MassStorage_Initialize(MassStorage_HandleReadSector, NULL);
 
 		SaveKeyInterrupts();
 		while (!_keytest(RR_CLEAR))
 			MassStorage_Do();
 		RestoreKeyInterrupts();
-		
-		MassStorage_Kill();
-		
-		//Shut down the driver
-		Driver_Kill();
 
-		// Reinitialize for peripheral mode.
-		USB_PeripheralKill();
-		*USB_INT_MASK_ADDR = 0xFF;
+		//Shut down the driver
+		MassStorage_Kill();
+		Driver_Kill();
 
 		//Flush the keyboard buffer
 		GKeyFlush();

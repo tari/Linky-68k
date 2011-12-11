@@ -403,6 +403,8 @@ void Driver_Kill(void)
 {
 	//Restore the old handler
 	SetIntVec(AUTO_INT_3, OldInt3);
+
+	USB_PeripheralKill();
 }
 
 void Driver_SetPeripheralInterface(USBPeripheral* interface)

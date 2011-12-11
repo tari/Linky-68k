@@ -4,5 +4,5 @@
 void DoSerialAdapter(void);
 void DoMassStorage(void);
 void DoSilentLink(void);
-void DoHIDMouse(void);
-void DoHIDKeyboard(void);
+short DoHIDMouse(void);
+short DoHIDKeyboard(void);
